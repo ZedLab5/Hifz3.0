@@ -573,7 +573,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
     val isSalatSettingsOpen = MutableStateFlow(false)
     val autoSilentDuringSalat = MutableStateFlow(
-        sharedPrefs.getBoolean("auto_silent_salat", true)
+        sharedPrefs.getBoolean("auto_silent_salat", false)
     )
     val silentDurationMinutes = MutableStateFlow(
         sharedPrefs.getInt("silent_duration_minutes", 20)
@@ -1161,7 +1161,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val memorizationMaskingStyle = MutableStateFlow(HifzMaskingStyle.BLUR_MUTED)
     val hifzSilhouetteOpacity = MutableStateFlow(sharedPrefs.getFloat("hifz_silhouette_opacity", 0.18f))
     val memorizationDelaySeconds = MutableStateFlow(sharedPrefs.getInt("hifz_delay_seconds", 0))
-    val memorizationLoopRange = MutableStateFlow(sharedPrefs.getBoolean("hifz_loop_range", true))
+    val memorizationLoopRange = MutableStateFlow(sharedPrefs.getBoolean("hifz_loop_range", false))
     val memorizationAudioSyncReveal = MutableStateFlow(sharedPrefs.getBoolean("hifz_audio_sync_reveal", true))
     val memorizationShowTranslation = MutableStateFlow(sharedPrefs.getBoolean("hifz_show_translation", false))
     val memorizationTestRecallMode = MutableStateFlow(false)
@@ -2920,13 +2920,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         setMemorizationDelaySeconds(delaySeconds)
     }
 
-    fun setMemorizationSurah(surah: Surah) {
+    fun setMemorizationSurah(surah: Surah, initialStartAyah: Int = 1, initialEndAyah: Int? = null) {
         stopMemorizationDrill()
         viewModelScope.launch {
             val surahWithVerses = if (surah.verses.isNotEmpty()) surah else repository.getSurahWithVerses(surah.number)
             memorizationSurah.value = surahWithVerses
-            memorizationStartAyah.value = 1
-            memorizationEndAyah.value = (7).coerceAtMost(surahWithVerses.totalVerses)
+            val total = surahWithVerses.totalVerses.coerceAtLeast(1)
+            val validStart = initialStartAyah.coerceIn(1, total)
+            val validEnd = (initialEndAyah ?: (validStart + 6)).coerceIn(validStart, total)
+            memorizationStartAyah.value = validStart
+            memorizationEndAyah.value = validEnd
             memorizationCurrentRepetition.value = 1
             revealedVersesInSession.value = emptySet()
             if (isAudioPlaying.value) {
@@ -3977,10 +3980,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                     saveLastDrilledChunk(surah.number, startRange, endRange, startRange, endRange, "AYAH")
                     if (!memorizationLoopRange.value) {
-                        isAudioPlaying.value = false
-                        drillProgressState.value = HifzDrillProgressInfo()
-                        triggerHaptic()
-                        showToast("Masha'Allah! Session recap completed for Ayahs $startRange–$endRange")
+                        val batchSize = (endRange - startRange + 1).coerceAtLeast(1)
+                        if (endRange < surah.totalVerses) {
+                            val nextStart = endRange + 1
+                            val nextEnd = (nextStart + batchSize - 1).coerceAtMost(surah.totalVerses)
+                            memorizationStartAyah.value = nextStart
+                            memorizationEndAyah.value = nextEnd
+                            triggerHaptic()
+                            showToast("Moving to next batch: Ayahs $nextStart–$nextEnd")
+                            if (isActive) {
+                                playAyahPatternDrillSession(startFromAyah = nextStart, forceStart = true)
+                            }
+                        } else {
+                            isAudioPlaying.value = false
+                            drillProgressState.value = HifzDrillProgressInfo()
+                            triggerHaptic()
+                            showToast("Masha'Allah! Completed Surah ${surah.nameEnglish}!")
+                        }
                     } else if (isActive && delaySec > 0) {
                         performDrillDelay(delaySec)
                     }

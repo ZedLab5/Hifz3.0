@@ -252,9 +252,9 @@ private fun rememberSalatColors(themeColors: ReadingThemeColors): SalatColorPale
                 linkTextColor = Color(0xFF2FBF96),
                 goldColor = SecondaryGoldDark,
                 goldAccentColor = SecondaryGoldDark,
-                softGoldNoticeBg = GoldTintBgDark,
-                noticeBg = GoldTintBgDark,
-                noticeTextColor = SecondaryGoldDark,
+                softGoldNoticeBg = Color(0xFF064E3B).copy(alpha = 0.25f),
+                noticeBg = Color(0xFF064E3B).copy(alpha = 0.25f),
+                noticeTextColor = Color(0xFF34D399),
                 titleText = themeColors.arabicText,
                 subtext = themeColors.translationText,
                 dividerColor = themeColors.border.copy(alpha = 0.25f),
@@ -287,9 +287,9 @@ private fun rememberSalatColors(themeColors: ReadingThemeColors): SalatColorPale
                 linkTextColor = Color(0xFF334155),
                 goldColor = Color(0xFFC28100),
                 goldAccentColor = Color(0xFFB45309),
-                softGoldNoticeBg = Color(0xFFFEF8EC),
-                noticeBg = Color(0xFFFEF8EC), // Soft gold notice
-                noticeTextColor = Color(0xFFB45309), // Soft gold text/icons
+                softGoldNoticeBg = Color(0xFFF0FDF4),
+                noticeBg = Color(0xFFF0FDF4), // Refreshing soft mint green notice
+                noticeTextColor = Color(0xFF15803D), // Rich emerald text & icons
                 titleText = themeColors.arabicText,
                 subtext = themeColors.translationText,
                 dividerColor = Color(0xFFECEFF1),
@@ -412,6 +412,8 @@ private fun SalatSettingsModalSheet(
     val buttonText = colors.settingsButtonText
     val progressTrack = colors.settingsProgressTrack
     val iconBadgeBg = colors.settingsIconBadgeBg
+    val unselectedBg = colors.settingsUnselectedBg
+    val isDark = themeColors.isDark
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -572,30 +574,81 @@ private fun SalatSettingsModalSheet(
                         )
                     }
 
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = stringResource(R.string.salat_silent_duration, silentDuration),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = if (autoSilent) primaryAccent else textSub,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            )
-                        }
-                        Slider(
-                            value = silentDuration.toFloat(),
-                            onValueChange = { viewModel.setSilentDuration(it.toInt()) },
-                            valueRange = 10f..45f,
-                            steps = 6,
-                            colors = SliderDefaults.colors(
-                                thumbColor = if (autoSilent) buttonBg else textSub,
-                                activeTrackColor = if (autoSilent) buttonBg else textSub,
-                                inactiveTrackColor = progressTrack
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = if (isArabic) "مدة التفعيل: $silentDuration دقيقة" else "Preset Silent Duration: ${silentDuration}m",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = if (autoSilent) primaryAccent else textSub,
+                                fontWeight = FontWeight.SemiBold
                             )
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val presetMinutes = listOf(10, 15, 20, 30, 45)
+                            presetMinutes.forEach { min ->
+                                val isSelected = silentDuration == min
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSelected) buttonBg else unselectedBg,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { viewModel.setSilentDuration(min) }
+                                ) {
+                                    Box(
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "${min}m",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSelected) Color.White else textTitle,
+                                                fontSize = 12.sp
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Manual Undo / DND Notice
+                    if (autoSilent) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isDark) Color(0xFF3B2D05) else Color(0xFFFFFBEB),
+                            border = null,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.Top,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = if (isArabic)
+                                        "ملاحظة: تفعيل وضع المسجد يقوم بتشغيل خاصية كتم الصوت/عدم الإزعاج عند دخول وقت الصلاة. سيتوجب عليك إلغاء الوضع الصامت يدوياً من هاتف بعد انتهاء الصلاة."
+                                    else
+                                        "Note: Mosque Mode toggles system Silent/DND when prayer time arrives. Toggling this activates silent mode; you will need to manually return your phone volume/DND after prayer.",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = if (isDark) Color(0xFFFEF3C7) else Color(0xFF92400E),
+                                        fontSize = 11.5.sp,
+                                        lineHeight = 16.sp
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -2039,37 +2092,41 @@ private fun SalatTimesContentInternal(
     var isNoticePermanentlyDismissed by remember {
         mutableStateOf(prefs.getBoolean("salat_notice_never_show_again", false))
     }
-    var isNoticeExpanded by rememberSaveable { mutableStateOf(true) }
+    var isNoticeExpanded by rememberSaveable { mutableStateOf(false) }
     var isForbiddenExpanded by rememberSaveable { mutableStateOf(true) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Active Zone Card (Location Section)
+        // Active Zone Card (Compact Single Surface Header)
+        val normalDateFormatted = remember {
+            java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEE, d MMM", java.util.Locale.getDefault()))
+        }
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(14.dp),
             color = colors.cardBackground,
             border = null
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Top Line: Location & Authority (Full Width)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
                             .background(colors.iconBadgeBg),
                         contentAlignment = Alignment.Center
@@ -2078,7 +2135,7 @@ private fun SalatTimesContentInternal(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = "Zone",
                             tint = colors.salatGreen,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
@@ -2087,81 +2144,86 @@ private fun SalatTimesContentInternal(
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.titleText,
-                                fontSize = 15.5.sp
-                            )
+                                fontSize = 14.5.sp
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "${selectedAuthority.name} • ${if (isHanafi) stringResource(R.string.salat_hanafi_asr) else stringResource(R.string.salat_standard_asr)}",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = colors.subtext,
-                                fontSize = 13.sp
-                            )
+                                fontSize = 11.5.sp
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                // Daily Progress Bar & Date with Link Color Background - rounded pill shape per user request
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = colors.linkBadgeBg,
-                    border = null
+                // Bottom Line: Normal Date + Hijri Date alongside completed badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 9.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarMonth,
-                                contentDescription = stringResource(R.string.salat_date_cd),
-                                tint = colors.linkTextColor,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = stringResource(R.string.salat_sample_hijri_date),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = colors.linkTextColor,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 13.sp
-                                )
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = stringResource(R.string.salat_date_cd),
+                            tint = colors.salatGreen,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "$normalDateFormatted  •  ${stringResource(R.string.salat_sample_hijri_date)}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = colors.linkTextColor,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.5.sp
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = colors.linkBadgeBg,
+                        border = null
+                    ) {
                         Text(
                             text = stringResource(R.string.salat_completed_count, completedPrayers.size),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.salatGreen,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
+                                fontSize = 11.5.sp
+                            ),
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
                         )
                     }
                 }
             }
         }
 
-        // Notice: Manual Time Adjustment (Collapsible with Hide/Show, and permanent "Don't show again")
+        // Notice: Manual Time Adjustment (Compact Collapsible Banner)
         if (!isNoticePermanentlyDismissed) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .animateContentSize(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = colors.noticeBg,
                 border = null
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -2171,20 +2233,20 @@ private fun SalatTimesContentInternal(
                         Row(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Tune,
                                 contentDescription = null,
                                 tint = colors.noticeTextColor,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = if (isArabic) "هل تلاحظ فرقاً في مواقيت الصلاة؟" else "Notice any difference in prayer times?",
+                                text = if (isArabic) "تعديل مواقيت الصلاة" else "Adjust prayer times?",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.noticeTextColor,
-                                    fontSize = 15.5.sp
+                                    fontSize = 13.5.sp
                                 )
                             )
                         }
@@ -2199,7 +2261,7 @@ private fun SalatTimesContentInternal(
                                 ) {
                                     isNoticeExpanded = !isNoticeExpanded
                                 }
-                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                                .padding(horizontal = 6.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
@@ -2208,14 +2270,14 @@ private fun SalatTimesContentInternal(
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = colors.noticeTextColor,
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 12.sp
+                                    fontSize = 11.5.sp
                                 )
                             )
                             Icon(
                                 imageVector = if (isNoticeExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                 contentDescription = if (isNoticeExpanded) "Hide notice content" else "Show notice content",
                                 tint = colors.noticeTextColor,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                         }
                     }

@@ -18,33 +18,47 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -139,6 +153,9 @@ fun QuranMemorizationSetupScreen(
 
     var showSurahPicker by remember { mutableStateOf(false) }
     var showReciterPicker by remember { mutableStateOf(false) }
+    var showDirectAyahInputDialog by remember { mutableStateOf<Pair<String, Int>?>(null) } // "FROM" or "TO" -> value
+    var showDrillExplanationSheet by remember { mutableStateOf(false) }
+    var showRecommendationsSheetGroup by remember { mutableStateOf<Int?>(null) }
     var activePreset by remember { mutableStateOf<HifzLevelPreset?>(HifzLevelPreset.INTERMEDIATE) }
 
     val batchSize = (endAyah - startAyah + 1).coerceAtLeast(1)
@@ -166,55 +183,6 @@ fun QuranMemorizationSetupScreen(
                 themeColors = themeColors
             )
         },
-        bottomBar = {
-            // Pinned Bottom Action: Normal rounded button at bottom
-            Surface(
-                color = themeColors.surface,
-                tonalElevation = 8.dp,
-                shadowElevation = 12.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            if (activeTab == 3) {
-                                viewModel.setMemorizationStudioTab(0)
-                                viewModel.startMemorizationSession()
-                            } else {
-                                viewModel.startMemorizationSession()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .testTag("start_hifz_session_button"),
-                        shape = RoundedCornerShape(26.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = themeColors.accent
-                        )
-                    ) {
-                        Text(
-                            text = when (activeTab) {
-                                2 -> "Start Recall Session"
-                                3 -> "Start New Hifz Session"
-                                else -> "Start Hifz Session"
-                            },
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                fontSize = 16.sp
-                            )
-                        )
-                    }
-                }
-            }
-        },
         containerColor = themeColors.background,
         modifier = modifier.fillMaxSize()
     ) { paddingValues ->
@@ -222,7 +190,7 @@ fun QuranMemorizationSetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 1. MODE SELECTOR (PRACTICE vs RECALL vs HISTORY)
@@ -368,9 +336,6 @@ fun QuranMemorizationSetupScreen(
             // 2. SURAH SELECTION CARD (Under the tabs, omitted on History tab)
             if (activeTab != 3) {
                 item {
-                    val surahProgress = if (surah.totalVerses > 0) memorizedCountInSurah.toFloat() / surah.totalVerses else 0f
-                    val surahPercentage = (surahProgress * 100).toInt()
-
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -386,7 +351,7 @@ fun QuranMemorizationSetupScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -474,66 +439,14 @@ fun QuranMemorizationSetupScreen(
                                     }
                                 }
 
-                                // Circular Percentage Indicator for Surah Mastery
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.size(48.dp)
-                                ) {
-                                    CircularProgressIndicator(
-                                        progress = { surahProgress },
-                                        modifier = Modifier.fillMaxSize(),
+                                Text(
+                                    text = surah.nameArabic,
+                                    style = MaterialTheme.typography.headlineSmall.copy(
+                                        fontWeight = FontWeight.Bold,
                                         color = themeColors.accent,
-                                        strokeWidth = 4.dp,
-                                        trackColor = themeColors.accent.copy(alpha = 0.15f)
+                                        fontSize = 22.sp
                                     )
-                                    Text(
-                                        text = "$surahPercentage%",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = themeColors.accent,
-                                            fontSize = 11.sp
-                                        )
-                                    )
-                                }
-                            }
-
-                            // Surah Mastery Bar
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Memorized in Surah",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = themeColors.translationText,
-                                            fontSize = 11.sp
-                                        )
-                                    )
-                                    Text(
-                                        text = "$memorizedCountInSurah/${surah.totalVerses} Ayahs",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = themeColors.accent,
-                                            fontSize = 11.sp
-                                        )
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp)
-                                        .clip(CircleShape)
-                                        .background(themeColors.border.copy(alpha = 0.3f))
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(surahProgress)
-                                            .height(6.dp)
-                                            .clip(CircleShape)
-                                            .background(themeColors.accent)
-                                    )
-                                }
+                                )
                             }
                         }
                     }
@@ -550,8 +463,7 @@ fun QuranMemorizationSetupScreen(
                         themeColors = themeColors,
                         onDrillSession = { log ->
                             val targetSurah = com.example.data.quran.QuranData.surahs.firstOrNull { it.number == log.surahNumber } ?: surah
-                            viewModel.setMemorizationSurah(targetSurah)
-                            viewModel.setMemorizationRange(log.startAyah, log.endAyah)
+                            viewModel.setMemorizationSurah(targetSurah, log.startAyah, log.endAyah)
                             viewModel.setMemorizationStudioTab(if (log.mode == "Self-Recall") 2 else 0)
                             viewModel.startMemorizationSession()
                         },
@@ -562,6 +474,16 @@ fun QuranMemorizationSetupScreen(
                 }
             } else if (activeTab != 2) {
                 // --- PRACTICE MODE CONFIGURATION ---
+                // 0. Recommended Hifz Passages (2 Side-by-Side Cards)
+                item {
+                    RecommendedHifzSection(
+                        themeColors = themeColors,
+                        onOpenGroup = { groupIndex ->
+                            showRecommendationsSheetGroup = groupIndex
+                        }
+                    )
+                }
+
                 // 1. Ready-made Presets (Beginner, Intermediate, Advanced)
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -664,11 +586,14 @@ fun QuranMemorizationSetupScreen(
                         onRangeChanged = { newStart, newEnd ->
                             activePreset = null
                             viewModel.setMemorizationRange(newStart, newEnd)
+                        },
+                        onDirectAyahInputClick = { type, current ->
+                            showDirectAyahInputDialog = Pair(type, current)
                         }
                     )
                 }
 
-                // 3. Drill Repetitions & Timing Card
+                // 3. Drill Repetitions & Custom Timing Controls
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -679,34 +604,76 @@ fun QuranMemorizationSetupScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                                .padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(22.dp)
                         ) {
-                            Text(
-                                text = "DRILL REPETITIONS & TIMING",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    color = themeColors.accent,
-                                    fontSize = 10.sp
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "DRILL REPETITIONS & TIMING",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.sp,
+                                        color = themeColors.accent,
+                                        fontSize = 10.sp
+                                    )
                                 )
-                            )
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = themeColors.accent.copy(alpha = 0.12f),
+                                    modifier = Modifier.clickable { showDrillExplanationSheet = true }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = themeColors.accent,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Text(
+                                            text = "How Drills Work",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = themeColors.accent,
+                                                fontSize = 11.sp
+                                            )
+                                        )
+                                    }
+                                }
+                            }
 
                             // Repetition Count Selector
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "Repeat Each Ayah:",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = themeColors.arabicText,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
+                                    Column {
+                                        Text(
+                                            text = "Repeat Each Ayah:",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = themeColors.arabicText,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.5.sp
+                                            )
                                         )
-                                    )
+                                        Text(
+                                            text = "Number of times Qari recites each verse",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = themeColors.translationText,
+                                                fontSize = 10.5.sp
+                                            )
+                                        )
+                                    }
                                     Text(
                                         text = "${repeatCount}x times",
                                         style = MaterialTheme.typography.labelSmall.copy(
@@ -733,7 +700,7 @@ fun QuranMemorizationSetupScreen(
                                                 }
                                         ) {
                                             Box(
-                                                modifier = Modifier.padding(vertical = 8.dp),
+                                                modifier = Modifier.padding(vertical = 10.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
@@ -750,21 +717,32 @@ fun QuranMemorizationSetupScreen(
                                 }
                             }
 
+                            HorizontalDivider(color = themeColors.border.copy(alpha = 0.25f))
+
                             // Ayah Pattern Selector
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "Repetition Pattern:",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = themeColors.arabicText,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
+                                    Column {
+                                        Text(
+                                            text = "Repetition Pattern:",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = themeColors.arabicText,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.5.sp
+                                            )
                                         )
-                                    )
+                                        Text(
+                                            text = "Links adjacent ayahs into flow loops",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = themeColors.translationText,
+                                                fontSize = 10.5.sp
+                                            )
+                                        )
+                                    }
                                     Text(
                                         text = ayahPattern,
                                         style = MaterialTheme.typography.labelSmall.copy(
@@ -791,7 +769,7 @@ fun QuranMemorizationSetupScreen(
                                                 }
                                         ) {
                                             Box(
-                                                modifier = Modifier.padding(vertical = 8.dp),
+                                                modifier = Modifier.padding(vertical = 10.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
@@ -808,21 +786,32 @@ fun QuranMemorizationSetupScreen(
                                 }
                             }
 
+                            HorizontalDivider(color = themeColors.border.copy(alpha = 0.25f))
+
                             // Delay between Ayahs
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "Pause Between Ayahs:",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = themeColors.arabicText,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
+                                    Column {
+                                        Text(
+                                            text = "Pause Between Ayahs:",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = themeColors.arabicText,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.5.sp
+                                            )
                                         )
-                                    )
+                                        Text(
+                                            text = "Silent recitation window after each verse",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = themeColors.translationText,
+                                                fontSize = 10.5.sp
+                                            )
+                                        )
+                                    }
                                     Text(
                                         text = if (delaySeconds == 0) "Instant" else "${delaySeconds}s pause",
                                         style = MaterialTheme.typography.labelSmall.copy(
@@ -836,7 +825,7 @@ fun QuranMemorizationSetupScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    listOf(0, 1, 2, 3, 5).forEach { sec ->
+                                    listOf(0, 1, 3, 5, 10).forEach { sec ->
                                         val isSelected = delaySeconds == sec
                                         Surface(
                                             shape = RoundedCornerShape(26.dp),
@@ -849,7 +838,7 @@ fun QuranMemorizationSetupScreen(
                                                 }
                                         ) {
                                             Box(
-                                                modifier = Modifier.padding(vertical = 8.dp),
+                                                modifier = Modifier.padding(vertical = 10.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
@@ -971,22 +960,6 @@ fun QuranMemorizationSetupScreen(
                                 themeColors = themeColors,
                                 onCheckedChange = { viewModel.toggleMemorizationLoopRange() }
                             )
-
-                            SetupToggleItem(
-                                title = "Reveal on Audio Recitation",
-                                subtitle = "Automatically unmasks each verse as Qari recites",
-                                checked = audioSyncReveal,
-                                themeColors = themeColors,
-                                onCheckedChange = { viewModel.toggleMemorizationAudioSyncReveal() }
-                            )
-
-                            SetupToggleItem(
-                                title = "Show English Translation",
-                                subtitle = "Display English translation text alongside Arabic",
-                                checked = showTranslation,
-                                themeColors = themeColors,
-                                onCheckedChange = { viewModel.toggleMemorizationShowTranslation() }
-                            )
                         }
                     }
                 }
@@ -1053,6 +1026,9 @@ fun QuranMemorizationSetupScreen(
                         onRangeChanged = { newStart, newEnd ->
                             activePreset = null
                             viewModel.setMemorizationRange(newStart, newEnd)
+                        },
+                        onDirectAyahInputClick = { type, current ->
+                            showDirectAyahInputDialog = Pair(type, current)
                         }
                     )
                 }
@@ -1326,6 +1302,43 @@ fun QuranMemorizationSetupScreen(
                     }
                 }
             }
+
+            // 6. Start Session Action Button (Normal button at bottom of page)
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        if (activeTab == 3) {
+                            viewModel.setMemorizationStudioTab(0)
+                            viewModel.startMemorizationSession()
+                        } else {
+                            viewModel.startMemorizationSession()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("start_hifz_session_button"),
+                    shape = RoundedCornerShape(26.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = themeColors.accent
+                    )
+                ) {
+                    Text(
+                        text = when (activeTab) {
+                            2 -> "Start Recall Session"
+                            3 -> "Start New Hifz Session"
+                            else -> "Start Hifz Session"
+                        },
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 16.sp
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 
@@ -1355,6 +1368,52 @@ fun QuranMemorizationSetupScreen(
             onDismiss = { showReciterPicker = false }
         )
     }
+
+    // DRILL EXPLANATION SHEET
+    if (showDrillExplanationSheet) {
+        DrillExplanationSheet(
+            themeColors = themeColors,
+            onDismiss = { showDrillExplanationSheet = false }
+        )
+    }
+
+    // RECOMMENDATIONS PICKER SHEET
+    if (showRecommendationsSheetGroup != null) {
+        RecommendationsPickerSheet(
+            initialGroup = showRecommendationsSheetGroup!!,
+            themeColors = themeColors,
+            onSelectPassage = { surahNum, sAyah, eAyah ->
+                val targetSurah = com.example.data.quran.QuranData.surahs.firstOrNull { it.number == surahNum }
+                if (targetSurah != null) {
+                    viewModel.setMemorizationSurah(targetSurah, sAyah, eAyah)
+                    activePreset = HifzLevelPreset.INTERMEDIATE
+                }
+                showRecommendationsSheetGroup = null
+            },
+            onDismiss = { showRecommendationsSheetGroup = null }
+        )
+    }
+
+    // DIRECT AYAH INPUT DIALOG
+    showDirectAyahInputDialog?.let { (type, currentVal) ->
+        DirectAyahInputDialog(
+            type = type,
+            currentValue = currentVal,
+            totalVerses = surah.totalVerses,
+            themeColors = themeColors,
+            onConfirm = { typedValue ->
+                if (type == "FROM") {
+                    val newStart = typedValue.coerceIn(1, endAyah)
+                    viewModel.setMemorizationRange(newStart, endAyah)
+                } else {
+                    val newEnd = typedValue.coerceIn(startAyah, surah.totalVerses)
+                    viewModel.setMemorizationRange(startAyah, newEnd)
+                }
+                showDirectAyahInputDialog = null
+            },
+            onDismiss = { showDirectAyahInputDialog = null }
+        )
+    }
 }
 
 @Composable
@@ -1364,7 +1423,8 @@ private fun AyahRangeAndBatchCard(
     totalVerses: Int,
     batchSize: Int,
     themeColors: com.example.ui.theme.ReadingThemeColors,
-    onRangeChanged: (Int, Int) -> Unit
+    onRangeChanged: (Int, Int) -> Unit,
+    onDirectAyahInputClick: (String, Int) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1401,8 +1461,9 @@ private fun AyahRangeAndBatchCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    val isAllSelected = startAyah == 1 && endAyah == totalVerses
                     listOf(3, 5, 7, 10, 15).forEach { size ->
-                        val isCurrentBatch = batchSize == size && endAyah < totalVerses
+                        val isCurrentBatch = !isAllSelected && batchSize == size
                         Surface(
                             shape = RoundedCornerShape(26.dp),
                             color = if (isCurrentBatch) themeColors.accent else themeColors.background,
@@ -1428,13 +1489,12 @@ private fun AyahRangeAndBatchCard(
                             }
                         }
                     }
-                    // Full Surah pill
-                    val isFull = startAyah == 1 && endAyah == totalVerses
+                    // All pill
                     Surface(
                         shape = RoundedCornerShape(26.dp),
-                        color = if (isFull) themeColors.accent else themeColors.background,
+                        color = if (isAllSelected) themeColors.accent else themeColors.background,
                         modifier = Modifier
-                            .weight(1.4f)
+                            .weight(1.2f)
                             .clickable {
                                 onRangeChanged(1, totalVerses)
                             }
@@ -1446,8 +1506,8 @@ private fun AyahRangeAndBatchCard(
                             Text(
                                 text = "All",
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = if (isFull) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isFull) Color.White else themeColors.arabicText,
+                                    fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isAllSelected) Color.White else themeColors.arabicText,
                                     fontSize = 12.sp
                                 )
                             )
@@ -1476,6 +1536,9 @@ private fun AyahRangeAndBatchCard(
                     },
                     onIncrement = {
                         onRangeChanged((startAyah + 1).coerceAtMost(endAyah), endAyah)
+                    },
+                    onNumberClick = {
+                        onDirectAyahInputClick("FROM", startAyah)
                     }
                 )
 
@@ -1492,6 +1555,9 @@ private fun AyahRangeAndBatchCard(
                     },
                     onIncrement = {
                         onRangeChanged(startAyah, (endAyah + 1).coerceAtMost(totalVerses))
+                    },
+                    onNumberClick = {
+                        onDirectAyahInputClick("TO", endAyah)
                     }
                 )
             }
@@ -1517,6 +1583,30 @@ private fun AyahRangeAndBatchCard(
                     )
                 }
             }
+
+            // Short Explanation Text
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = themeColors.accent,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Batch size breaks your memorization target into smaller manageable verse sets. Once a batch is completed, your session automatically advances to the next set.",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = themeColors.translationText,
+                        fontSize = 11.5.sp,
+                        lineHeight = 15.sp
+                    )
+                )
+            }
         }
     }
 }
@@ -1530,7 +1620,8 @@ private fun RangeStepperBox(
     themeColors: com.example.ui.theme.ReadingThemeColors,
     modifier: Modifier = Modifier,
     onDecrement: () -> Unit,
-    onIncrement: () -> Unit
+    onIncrement: () -> Unit,
+    onNumberClick: () -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -1551,7 +1642,7 @@ private fun RangeStepperBox(
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 IconButton(
                     onClick = onDecrement,
@@ -1565,14 +1656,33 @@ private fun RangeStepperBox(
                         modifier = Modifier.size(16.dp)
                     )
                 }
-                Text(
-                    text = "$value",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = themeColors.arabicText,
-                        fontSize = 17.sp
-                    )
-                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = themeColors.surface,
+                    border = BorderStroke(1.dp, themeColors.accent.copy(alpha = 0.3f)),
+                    modifier = Modifier.clickable { onNumberClick() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "$value",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = themeColors.arabicText,
+                                fontSize = 17.sp
+                            )
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Type Ayah Number",
+                            tint = themeColors.accent,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
                 IconButton(
                     onClick = onIncrement,
                     enabled = value < maxValue,
@@ -1633,4 +1743,618 @@ private fun SetupToggleItem(
             )
         )
     }
+}
+
+private data class RecommendedPassage(
+    val title: String,
+    val arabicName: String,
+    val subtitle: String,
+    val surahNumber: Int,
+    val startAyah: Int,
+    val endAyah: Int,
+    val icon: ImageVector
+)
+
+@Composable
+private fun RecommendedHifzSection(
+    themeColors: com.example.ui.theme.ReadingThemeColors,
+    onOpenGroup: (Int) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "RECOMMENDED HIFZ PASSAGES",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    color = themeColors.translationText,
+                    fontSize = 11.sp
+                )
+            )
+            Text(
+                text = "Tap to Browse",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = themeColors.accent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Card 1: 15 Short Surahs
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = themeColors.surface,
+                border = BorderStroke(1.dp, themeColors.accent.copy(alpha = 0.22f)),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onOpenGroup(0) }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(themeColors.accent.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.School,
+                                contentDescription = null,
+                                tint = themeColors.accent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Browse 15 Short Surahs",
+                            tint = themeColors.translationText,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "15 Short Surahs",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = themeColors.arabicText,
+                                fontSize = 14.5.sp
+                            )
+                        )
+                        Text(
+                            text = "Start with commonly memorized short surahs",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = themeColors.translationText,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Card 2: 15 Important Ayahs
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = themeColors.surface,
+                border = BorderStroke(1.dp, themeColors.accent.copy(alpha = 0.22f)),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onOpenGroup(1) }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(themeColors.accent.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = themeColors.accent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Browse 15 Important Ayahs",
+                            tint = themeColors.translationText,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "15 Important Ayahs",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = themeColors.arabicText,
+                                fontSize = 14.5.sp
+                            )
+                        )
+                        Text(
+                            text = "Memorize important and commonly recited ayahs",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = themeColors.translationText,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecommendationsPickerSheet(
+    initialGroup: Int,
+    themeColors: com.example.ui.theme.ReadingThemeColors,
+    onSelectPassage: (Int, Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedGroup by remember { mutableStateOf(initialGroup) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val shortSurahs = remember {
+        listOf(
+            RecommendedPassage("Surah Al-Ikhlas", "سورة الإخلاص", "Surah 112 • 4 Ayahs", 112, 1, 4, Icons.Default.School),
+            RecommendedPassage("Surah Al-Falaq", "سورة الفلق", "Surah 113 • 5 Ayahs", 113, 1, 5, Icons.Default.Psychology),
+            RecommendedPassage("Surah An-Nas", "سورة الناس", "Surah 114 • 6 Ayahs", 114, 1, 6, Icons.Default.School),
+            RecommendedPassage("Surah Al-Kawthar", "سورة الكوثر", "Surah 108 • 3 Ayahs", 108, 1, 3, Icons.Default.AutoAwesome),
+            RecommendedPassage("Surah An-Nasr", "سورة النصر", "Surah 110 • 3 Ayahs", 110, 1, 3, Icons.Default.School),
+            RecommendedPassage("Surah Al-Asr", "سورة العصر", "Surah 103 • 3 Ayahs", 103, 1, 3, Icons.Default.Psychology),
+            RecommendedPassage("Surah Quraysh", "سورة قريش", "Surah 106 • 4 Ayahs", 106, 1, 4, Icons.Default.School),
+            RecommendedPassage("Surah Al-Masad", "سورة المسد", "Surah 111 • 5 Ayahs", 111, 1, 5, Icons.Default.AutoAwesome),
+            RecommendedPassage("Surah Al-Kafirun", "سورة الكافرون", "Surah 109 • 6 Ayahs", 109, 1, 6, Icons.Default.School),
+            RecommendedPassage("Surah Al-Ma'un", "سورة الماعون", "Surah 107 • 7 Ayahs", 107, 1, 7, Icons.Default.Psychology),
+            RecommendedPassage("Surah Al-Fil", "سورة الفيل", "Surah 105 • 5 Ayahs", 105, 1, 5, Icons.Default.School),
+            RecommendedPassage("Surah Al-Humazah", "سورة الهمزة", "Surah 104 • 9 Ayahs", 104, 1, 9, Icons.Default.AutoAwesome),
+            RecommendedPassage("Surah At-Takathur", "سورة التكاثر", "Surah 102 • 8 Ayahs", 102, 1, 8, Icons.Default.Psychology),
+            RecommendedPassage("Surah Al-Qari'ah", "سورة القارعة", "Surah 101 • 11 Ayahs", 101, 1, 11, Icons.Default.School),
+            RecommendedPassage("Surah Ad-Duha", "سورة الضحى", "Surah 93 • 11 Ayahs", 93, 1, 11, Icons.Default.AutoAwesome)
+        )
+    }
+
+    val importantAyahs = remember {
+        listOf(
+            RecommendedPassage("Ayat al-Kursi", "آية الكرسي", "Al-Baqarah • v.255", 2, 255, 255, Icons.Default.AutoAwesome),
+            RecommendedPassage("Last 2 Ayahs", "خواتيم البقرة", "Al-Baqarah • v.285–286", 2, 285, 286, Icons.Default.School),
+            RecommendedPassage("Al-Kahf (First 10)", "أول الكهف", "Al-Kahf • v.1–10", 18, 1, 10, Icons.Default.Psychology),
+            RecommendedPassage("Al-Kahf (Last 10)", "آخر الكهف", "Al-Kahf • v.101–110", 18, 101, 110, Icons.Default.AutoAwesome),
+            RecommendedPassage("Surah Al-Mulk", "سورة الملك", "Al-Mulk • v.1–10", 67, 1, 10, Icons.Default.School),
+            RecommendedPassage("Ayat Al-Hashr", "خواتيم الحشر", "Al-Hashr • v.21–24", 59, 21, 24, Icons.Default.Psychology),
+            RecommendedPassage("Surah Ar-Rahman", "أول الرحمن", "Ar-Rahman • v.1–13", 55, 1, 13, Icons.Default.AutoAwesome),
+            RecommendedPassage("Surah Yasin", "أول يس", "Yasin • v.1–12", 36, 1, 12, Icons.Default.School),
+            RecommendedPassage("Surah As-Sajdah", "أول السجدة", "As-Sajdah • v.1–10", 32, 1, 10, Icons.Default.Psychology),
+            RecommendedPassage("Surah Al-Mu'minun", "أول المؤمنون", "Al-Mu'minun • v.1–11", 23, 1, 11, Icons.Default.School),
+            RecommendedPassage("Verse of Light", "آية النور", "An-Nur • v.35", 24, 35, 35, Icons.Default.AutoAwesome),
+            RecommendedPassage("Du'a Dhul-Nun", "دعاء ذي النون", "Al-Anbiya • v.87–88", 21, 87, 88, Icons.Default.Psychology),
+            RecommendedPassage("Ali 'Imran (190-194)", "خواتيم آل عمران", "Ali 'Imran • v.190–194", 3, 190, 194, Icons.Default.School),
+            RecommendedPassage("Ibad Ar-Rahman", "عباد الرحمن", "Al-Furqan • v.63–70", 25, 63, 70, Icons.Default.AutoAwesome),
+            RecommendedPassage("Surah As-Saff", "تجارة تنجيكم", "As-Saff • v.10–13", 61, 10, 13, Icons.Default.Psychology)
+        )
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = themeColors.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = themeColors.accent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = "Recommended Passages",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = themeColors.arabicText,
+                            fontSize = 18.sp
+                        )
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = themeColors.translationText
+                    )
+                }
+            }
+
+            // Group Switcher Tabs
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (selectedGroup == 0) themeColors.accent else themeColors.background,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedGroup = 0 }
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "15 Short Surahs",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedGroup == 0) Color.White else themeColors.arabicText,
+                                fontSize = 13.sp
+                            )
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (selectedGroup == 1) themeColors.accent else themeColors.background,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedGroup = 1 }
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "15 Important Ayahs",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedGroup == 1) Color.White else themeColors.arabicText,
+                                fontSize = 13.sp
+                            )
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = if (selectedGroup == 0) "Start with commonly memorized short surahs" else "Memorize important and commonly recited ayahs",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = themeColors.translationText,
+                    fontSize = 12.sp
+                )
+            )
+
+            HorizontalDivider(color = themeColors.border.copy(alpha = 0.3f))
+
+            // Scrollable List of 15 Items
+            val activeList = if (selectedGroup == 0) shortSurahs else importantAyahs
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(activeList) { item ->
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = themeColors.background,
+                        border = BorderStroke(1.dp, themeColors.accent.copy(alpha = 0.15f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onSelectPassage(item.surahNumber, item.startAyah, item.endAyah)
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(themeColors.accent.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = null,
+                                        tint = themeColors.accent,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = item.title,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = themeColors.arabicText,
+                                            fontSize = 14.sp
+                                        )
+                                    )
+                                    Text(
+                                        text = item.subtitle,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = themeColors.translationText,
+                                            fontSize = 12.sp
+                                        )
+                                    )
+                                }
+                            }
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = item.arabicName,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = themeColors.accent,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = "Select",
+                                    tint = themeColors.translationText,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DrillExplanationSheet(
+    themeColors: com.example.ui.theme.ReadingThemeColors,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = themeColors.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.School,
+                        contentDescription = null,
+                        tint = themeColors.accent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = "How Hifz Drills Work",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = themeColors.arabicText,
+                            fontSize = 18.sp
+                        )
+                    )
+                }
+            }
+
+            HorizontalDivider(color = themeColors.border.copy(alpha = 0.3f))
+
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                DrillStepItem(
+                    stepNumber = "1",
+                    title = "Each Ayah Repetition",
+                    description = "Focuses on memorizing individual verses. The Qari recites an ayah, and you repeat it multiple times (e.g., 3x or 5x) until comfortable.",
+                    themeColors = themeColors
+                )
+                DrillStepItem(
+                    stepNumber = "2",
+                    title = "Repetition Pattern (Linking Ayahs)",
+                    description = "Links adjacent verses together. For example, '1-1-2-12' recites Ayah 1 twice, Ayah 2 once, then Ayahs 1 and 2 together to build seamless flow.",
+                    themeColors = themeColors
+                )
+                DrillStepItem(
+                    stepNumber = "3",
+                    title = "Pause Between Ayahs",
+                    description = "Gives you a timed silent window (1s, 3s, 5s, or 10s) after each recitation to recite from memory before the Qari continues.",
+                    themeColors = themeColors
+                )
+                DrillStepItem(
+                    stepNumber = "4",
+                    title = "Auto-Advancing Batches",
+                    description = "When 'Loop Range' is OFF, finishing the current batch automatically advances your session to the next set of ayahs in the surah.",
+                    themeColors = themeColors
+                )
+            }
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = themeColors.accent)
+            ) {
+                Text("Got It!", style = MaterialTheme.typography.labelLarge.copy(color = Color.White, fontWeight = FontWeight.Bold))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DrillStepItem(
+    stepNumber: String,
+    title: String,
+    description: String,
+    themeColors: com.example.ui.theme.ReadingThemeColors
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(themeColors.accent.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stepNumber,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = themeColors.accent
+                )
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = themeColors.arabicText
+                )
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = themeColors.translationText,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun DirectAyahInputDialog(
+    type: String,
+    currentValue: Int,
+    totalVerses: Int,
+    themeColors: com.example.ui.theme.ReadingThemeColors,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var textValue by remember { mutableStateOf("$currentValue") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (type == "FROM") "Set Start Ayah" else "Set End Ayah",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = themeColors.arabicText
+                )
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Type the Ayah number (1 to $totalVerses):",
+                    style = MaterialTheme.typography.bodySmall.copy(color = themeColors.translationText)
+                )
+                OutlinedTextField(
+                    value = textValue,
+                    onValueChange = { textValue = it.filter { char -> char.isDigit() } },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = themeColors.accent,
+                        unfocusedBorderColor = themeColors.border,
+                        focusedTextColor = themeColors.arabicText,
+                        unfocusedTextColor = themeColors.arabicText
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val parsed = textValue.toIntOrNull() ?: currentValue
+                    val validValue = parsed.coerceIn(1, totalVerses)
+                    onConfirm(validValue)
+                }
+            ) {
+                Text("Apply", style = MaterialTheme.typography.labelLarge.copy(color = themeColors.accent, fontWeight = FontWeight.Bold))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", style = MaterialTheme.typography.labelLarge.copy(color = themeColors.translationText))
+            }
+        },
+        containerColor = themeColors.surface
+    )
 }
