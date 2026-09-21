@@ -98,11 +98,15 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
                     }
                 }
 
-                // 3. Asynchronously update the home screen Glance widget
+                // 3. Asynchronously update the home screen Glance widget and re-arm alarms
                 val pendingResult = goAsync()
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         PrayerWidgetUpdater.update(context)
+                        // Re-arm alarms for tomorrow to ensure continuous daily cycle
+                        AlarmRescheduler.rescheduleFromSavedSettings(context)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     } finally {
                         pendingResult.finish()
                     }
