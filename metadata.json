@@ -1,0 +1,6 @@
+{
+  "name": "Noor",
+  "description": "Ultra-modern Islamic spiritual companion, Noble Quran reader, live prayer tracker, digital tasbih, Qibla finder, and verified daily wisdom.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
