@@ -231,9 +231,84 @@ object AppStrings {
         "profile_confirm_signout_sub" to Entry("Your data will remain safely stored locally in Guest Mode.", "ستظل بياناتك محفوظة محلياً بأمان في وضع الضيف.")
     )
 
+    private val turkishMap = mapOf(
+        "home_header_greeting" to "ES-SELAMU ALEYKÜM",
+        "home_header_guest" to "Misafir Modu",
+        "home_header_default_location" to "Mekke-i Mükerreme",
+        "home_essential_quran" to "Kur'an-ı Kerim",
+        "home_essential_qibla" to "Kıble Bulucu",
+        "home_essential_tasbih" to "Tesbih",
+        "home_essential_duas" to "Dualar ve Zikirler",
+        "home_essential_salat" to "Namaz ve Kaza",
+        "home_essential_habits" to "Sünnet Alışkanlıkları",
+        "all_tools_title" to "Tüm Araçlar",
+        "profile_title" to "Profil",
+        "load_verses_button" to "Ayetleri Yükle"
+    )
+
+    private val indonesianMap = mapOf(
+        "home_header_greeting" to "ASSALAMU ALAYKUM",
+        "home_header_guest" to "Mode Tamu",
+        "home_header_default_location" to "Makkah al-Mukarramah",
+        "home_essential_quran" to "Al-Qur'an",
+        "home_essential_qibla" to "Arah Kiblat",
+        "home_essential_tasbih" to "Tasbih",
+        "home_essential_duas" to "Doa & Dzikir",
+        "home_essential_salat" to "Salat & Qaza",
+        "home_essential_habits" to "Kebiasaan Sunnah",
+        "all_tools_title" to "Semua Fitur",
+        "profile_title" to "Profil",
+        "load_verses_button" to "Muat Ayat"
+    )
+
+    private val frenchMap = mapOf(
+        "home_header_greeting" to "AS-SALAMU ALAYKUM",
+        "home_header_guest" to "Mode Invité",
+        "home_header_default_location" to "La Mecque",
+        "home_essential_quran" to "Saint Coran",
+        "home_essential_qibla" to "Boussole Qibla",
+        "home_essential_tasbih" to "Chapelet",
+        "home_essential_duas" to "Douas & Dhikr",
+        "home_essential_salat" to "Prière & Rattrapage",
+        "home_essential_habits" to "Habitudes Sunnah",
+        "all_tools_title" to "Tous les Outils",
+        "profile_title" to "Profil",
+        "load_verses_button" to "Charger les Versets"
+    )
+
+    private val urduMap = mapOf(
+        "home_header_greeting" to "اسلام علیکم",
+        "home_header_guest" to "مہمان موڈ",
+        "home_header_default_location" to "مکہ مکرمہ",
+        "home_essential_quran" to "قرآن پاک",
+        "home_essential_qibla" to "قبلہ نما",
+        "home_essential_tasbih" to "تسبیح",
+        "home_essential_duas" to "دعائیں اور اذکار",
+        "home_essential_salat" to "نماز اور قضا",
+        "home_essential_habits" to "سنت عادات",
+        "all_tools_title" to "تمام ٹولز",
+        "profile_title" to "پروفائل",
+        "load_verses_button" to "آیات لوڈ کریں"
+    )
+
     fun get(key: String, language: String): String {
-        val entry = map[key] ?: return key // fallback
-        return if (language.equals("Arabic", ignoreCase = true) || language == "العربية") entry.ar else entry.en
+        val normalized = language.trim().lowercase(java.util.Locale.ROOT)
+        if (normalized.startsWith("ar")) {
+            return map[key]?.ar ?: key
+        }
+        if (normalized.startsWith("tr") || normalized.startsWith("turk")) {
+            return turkishMap[key] ?: map[key]?.en ?: key
+        }
+        if (normalized.startsWith("ind") || normalized.startsWith("bahasa") || normalized.startsWith("id")) {
+            return indonesianMap[key] ?: map[key]?.en ?: key
+        }
+        if (normalized.startsWith("fr")) {
+            return frenchMap[key] ?: map[key]?.en ?: key
+        }
+        if (normalized.startsWith("ur")) {
+            return urduMap[key] ?: map[key]?.en ?: key
+        }
+        return map[key]?.en ?: key
     }
 }
 

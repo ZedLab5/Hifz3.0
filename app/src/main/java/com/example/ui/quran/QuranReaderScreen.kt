@@ -481,6 +481,14 @@ fun QuranReaderScreen(
         label = "bottomBarVisibility"
     )
 
+    val favoriteVerseKeysSet = remember(favorites, currentSurah.number) {
+        favorites.map { it.title }.toSet()
+    }
+    val quranNotesMap = remember(quranNotes, currentSurah.number) {
+        quranNotes.filter { it.surahNumber == currentSurah.number }
+            .associate { it.verseNumber to it.noteText }
+    }
+
     val screenBackground = if (isMushafFlowMode && !themeColors.isDark && !isSepiaMode) Color.White else themeColors.background
 
     Box(
@@ -569,7 +577,7 @@ fun QuranReaderScreen(
                             key = { "${currentSurah.number}_${it.verseNumber}" }
                         ) { verse ->
                             val isVerseActive = isCurrentSurahPlaying && currentPlayingVerse == verse.verseNumber
-                            val isFavorite = favorites.any { it.title.contains("Surah ${currentSurah.nameEnglish} Ayah ${verse.verseNumber}") }
+                            val isFavorite = favoriteVerseKeysSet.contains("Surah ${currentSurah.nameEnglish} Ayah ${verse.verseNumber}")
                             val isExactBookmark = readingProgress?.surahNumber == currentSurah.number &&
                                     readingProgress?.ayahNumber == verse.verseNumber
 
@@ -582,9 +590,7 @@ fun QuranReaderScreen(
                             val isKhatmaRead = isKhatmaActive && verseAbsIndex <= currentReadCount
                             val isKhatmaCurrentPointer = isKhatmaActive && verseAbsIndex == currentReadCount
 
-                            val verseNoteText = quranNotes.firstOrNull {
-                                it.surahNumber == currentSurah.number && it.verseNumber == verse.verseNumber
-                            }?.noteText
+                            val verseNoteText = quranNotesMap[verse.verseNumber]
 
                             VerseCardItem(
                                 verse = verse,

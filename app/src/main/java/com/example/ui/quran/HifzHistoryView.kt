@@ -125,6 +125,56 @@ fun HifzHistoryContent(
     modifier: Modifier = Modifier
 ) {
     val latestSession = sessionLogs.firstOrNull()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val revisionItems = remember(sessionLogs) {
+        val prefs = context.getSharedPreferences("noor_app_preferences", android.content.Context.MODE_PRIVATE)
+        val allPrefs = prefs.all
+        val items = mutableListOf<HifzRevisionItem>()
+        
+        allPrefs.forEach { (key, value) ->
+            if (key.startsWith("hifz_confidence_") && !key.startsWith("hifz_confidence_time_")) {
+                val rating = value as? String ?: return@forEach
+                val parts = key.split("_")
+                if (parts.size >= 6) {
+                    val surahNum = parts[2].toIntOrNull() ?: return@forEach
+                    val startAyah = parts[3].toIntOrNull() ?: return@forEach
+                    val endAyah = parts[4].toIntOrNull() ?: return@forEach
+                    val mode = parts.subList(5, parts.size).joinToString("_")
+                    
+                    val timeKey = "hifz_confidence_time_${surahNum}_${startAyah}_${endAyah}_$mode"
+                    var timestamp = prefs.getLong(timeKey, 0L)
+                    if (timestamp == 0L) {
+                        val matchingLog = sessionLogs.find { it.surahNumber == surahNum && it.startAyah == startAyah && it.endAyah == endAyah }
+                        timestamp = matchingLog?.timestamp ?: (System.currentTimeMillis() - 12 * 60 * 60 * 1000L)
+                    }
+                    
+                    val intervalDays = if (rating == "STILL_SHAKY") 1 else 7
+                    val nextReviewTime = timestamp + (intervalDays * 24 * 60 * 60 * 1000L)
+                    val diffMs = nextReviewTime - System.currentTimeMillis()
+                    val dueDaysRemaining = kotlin.math.ceil(diffMs.toDouble() / (24 * 60 * 60 * 1000.0)).toInt()
+                    val isDue = diffMs <= 0
+                    
+                    val surahName = com.example.data.quran.QuranData.surahs.find { it.number == surahNum }?.nameEnglish ?: "Unknown"
+                    
+                    items.add(
+                        HifzRevisionItem(
+                            surahNumber = surahNum,
+                            surahName = surahName,
+                            startAyah = startAyah,
+                            endAyah = endAyah,
+                            mode = mode,
+                            confidenceRating = rating,
+                            timestamp = timestamp,
+                            dueDaysRemaining = dueDaysRemaining,
+                            isDue = isDue
+                        )
+                    )
+                }
+            }
+        }
+        items.sortedWith(compareBy<HifzRevisionItem> { !it.isDue }.thenBy { it.dueDaysRemaining })
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -139,11 +189,30 @@ fun HifzHistoryContent(
             )
         }
 
-        // 2. RELEVANT & MEANINGFUL HIFZ STATS (No fun/curious fluff, strictly necessary metrics)
+        // 2. RELEVANT & MEANINGFUL HIFZ STATS
         HifzMasteryStatsCard(
             sessionLogs = sessionLogs,
             memorizedCount = memorizedCount,
             themeColors = themeColors
+        )
+
+        // 2.5. SPACED REPETITION SCHEDULE
+        SpacedRepetitionRevisionCard(
+            revisionItems = revisionItems,
+            themeColors = themeColors,
+            onDrillRevision = { item ->
+                val dummyLog = HifzSessionLog(
+                    surahNumber = item.surahNumber,
+                    surahName = item.surahName,
+                    startAyah = item.startAyah,
+                    endAyah = item.endAyah,
+                    mode = item.mode,
+                    totalAyahs = item.endAyah - item.startAyah + 1,
+                    ayahsMemorized = item.endAyah - item.startAyah + 1,
+                    ayahsMissed = 0
+                )
+                onDrillSession(dummyLog)
+            }
         )
 
         // 3. RETENTION & REVISION OVERVIEW (If recent errors occurred)
@@ -165,6 +234,174 @@ fun HifzHistoryContent(
             onDrillSession = onDrillSession,
             onClearHistory = onClearHistory
         )
+    }
+}
+
+data class HifzRevisionItem(
+    val surahNumber: Int,
+    val surahName: String,
+    val startAyah: Int,
+    val endAyah: Int,
+    val mode: String,
+    val confidenceRating: String,
+    val timestamp: Long,
+    val dueDaysRemaining: Int,
+    val isDue: Boolean
+)
+
+@Composable
+private fun SpacedRepetitionRevisionCard(
+    revisionItems: List<HifzRevisionItem>,
+    themeColors: ReadingThemeColors,
+    onDrillRevision: (HifzRevisionItem) -> Unit
+) {
+    val dueToday = revisionItems.filter { it.isDue }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = themeColors.surface),
+        border = null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = themeColors.accent.copy(alpha = 0.15f),
+                        border = null,
+                        shadowElevation = 0.dp
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Psychology,
+                            contentDescription = null,
+                            tint = themeColors.accent,
+                            modifier = Modifier.padding(6.dp).size(14.dp)
+                        )
+                    }
+                    Text(
+                        text = "REVISION DUE SCHEDULE",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp,
+                            color = themeColors.accent,
+                            fontSize = 10.sp
+                        )
+                    )
+                }
+
+                Text(
+                    text = "${dueToday.size} due • ${revisionItems.size} total",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = themeColors.translationText,
+                        fontSize = 10.5.sp
+                    )
+                )
+            }
+
+            if (revisionItems.isEmpty()) {
+                Text(
+                    text = "No stored confidence ratings yet. Complete self-recall rounds and rate your confidence to schedule automated review cycles.",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = themeColors.translationText,
+                        lineHeight = 16.sp
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    revisionItems.take(4).forEach { item ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = themeColors.background,
+                            border = null,
+                            shadowElevation = 0.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onDrillRevision(item) }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "${item.surahName} (${item.startAyah}–${item.endAyah})",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = themeColors.arabicText,
+                                            fontSize = 12.5.sp
+                                        )
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = if (item.confidenceRating == "STILL_SHAKY") Color(0xFFE57373).copy(alpha = 0.15f) else Color(0xFF81C784).copy(alpha = 0.15f)
+                                        ) {
+                                            Text(
+                                                text = if (item.confidenceRating == "STILL_SHAKY") "Shaky" else "Mastered",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    color = if (item.confidenceRating == "STILL_SHAKY") Color(0xFFD32F2F) else Color(0xFF388E3C),
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 9.sp
+                                                ),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        Text(
+                                            text = if (item.isDue) "⚠️ Review now" else "In ${item.dueDaysRemaining}d",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = if (item.isDue) Color(0xFFD32F2F) else themeColors.translationText,
+                                                fontSize = 11.sp
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = themeColors.accent.copy(alpha = 0.12f),
+                                    border = null,
+                                    shadowElevation = 0.dp
+                                ) {
+                                    Text(
+                                        text = "Revise",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = themeColors.accent,
+                                            fontSize = 11.sp
+                                        ),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

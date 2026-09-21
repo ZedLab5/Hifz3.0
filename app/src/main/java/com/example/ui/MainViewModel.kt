@@ -138,7 +138,7 @@ data class ConfidencePromptData(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
-    private val repository = NoorRepository(
+    internal val repository = NoorRepository(
         dao = db.noorDao(),
         quranBookmarkDao = db.quranBookmarkDao(),
         tasbihDao = db.tasbihDao(),
@@ -753,16 +753,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             else -> "+${offsetMinutes}m After"
         }
         showToast("$prayerName timing set to $label")
-    }
-
-    fun togglePrayerNotification(prayerName: String) {
-        val enabledMap = prayerNotificationEnabled.value.toMutableMap()
-        val newState = !(enabledMap[prayerName] ?: true)
-        enabledMap[prayerName] = newState
-        prayerNotificationEnabled.value = enabledMap
-        schedulePrayerAlarms()
-        triggerHaptic()
-        showToast(if (newState) "$prayerName notification active" else "$prayerName notification muted")
     }
 
     fun toggleAthanAudioPreview(soundId: String? = null) {
@@ -2631,15 +2621,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return repository.searchVerses(query)
     }
 
-    fun searchDuas(query: String): List<com.example.data.model.DuaItem> {
-        return com.example.data.quran.DuaData.search(query)
+    suspend fun searchDuas(query: String): List<com.example.data.model.DuaItem> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        com.example.data.quran.DuaData.search(query)
     }
 
-    fun searchHadiths(query: String): List<com.example.data.model.HadithItem> {
-        if (query.isBlank()) return emptyList()
-        return kotlinx.coroutines.runBlocking {
-            com.example.data.quran.HadithData.searchRemote(query)
-        }
+    suspend fun searchHadiths(query: String): List<com.example.data.model.HadithItem> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        com.example.data.quran.HadithData.searchRemote(query)
     }
 
     fun searchReciters(query: String): List<com.example.data.model.Reciter> {
@@ -3310,7 +3298,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun recordConfidenceRating(rating: String) {
         val prompt = activeConfidencePrompt.value ?: return
         val key = "hifz_confidence_${prompt.surahNumber}_${prompt.startAyah}_${prompt.endAyah}_${prompt.mode}"
-        sharedPrefs.edit().putString(key, rating).apply()
+        val timeKey = "hifz_confidence_time_${prompt.surahNumber}_${prompt.startAyah}_${prompt.endAyah}_${prompt.mode}"
+        sharedPrefs.edit()
+            .putString(key, rating)
+            .putLong(timeKey, System.currentTimeMillis())
+            .apply()
         prompt.onChoice(rating)
         activeConfidencePrompt.value = null
         triggerHaptic()

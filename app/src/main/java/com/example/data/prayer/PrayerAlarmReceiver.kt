@@ -116,7 +116,7 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
     }
 
     private fun applyMosqueMode(context: Context, prefs: SharedPreferences) {
-        val isAutoSilent = prefs.getBoolean("auto_silent_salat", true)
+        val isAutoSilent = prefs.getBoolean("auto_silent_salat", false)
         if (!isAutoSilent) return
 
         val durationMinutes = prefs.getInt("silent_duration_minutes", 20)

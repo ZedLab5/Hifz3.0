@@ -24,9 +24,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -319,6 +321,7 @@ fun SalatScreen(
     modifier: Modifier = Modifier
 ) {
     var isSettingsModalOpen by remember { mutableStateOf(false) }
+    var isCalendarModalOpen by remember { mutableStateOf(false) }
 
     val readingThemeName by viewModel.sharedReadingTheme.collectAsStateWithLifecycle()
     val themeColors = remember(readingThemeName) { ReadingThemes.getThemeByName(readingThemeName) }
@@ -335,6 +338,12 @@ fun SalatScreen(
                 onBackClick = { viewModel.navigateBack() },
                 backContentDescription = stringResource(R.string.action_back),
                 actions = {
+                    NoorGlassIconButton(
+                        onClick = { isCalendarModalOpen = true },
+                        icon = Icons.Default.CalendarMonth,
+                        contentDescription = "Monthly Prayer Timetable"
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     NoorGlassIconButton(
                         onClick = { isSettingsModalOpen = true },
                         icon = Icons.Default.Tune,
@@ -360,6 +369,15 @@ fun SalatScreen(
         if (isSettingsModalOpen) {
             SalatSettingsModalSheet(
                 onDismiss = { isSettingsModalOpen = false },
+                viewModel = viewModel,
+                themeColors = themeColors,
+                colors = colors
+            )
+        }
+
+        if (isCalendarModalOpen) {
+            SalatCalendarModalSheet(
+                onDismiss = { isCalendarModalOpen = false },
                 viewModel = viewModel,
                 themeColors = themeColors,
                 colors = colors
@@ -3786,5 +3804,410 @@ private fun PrayerRowSettingsSheet(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SalatCalendarModalSheet(
+    onDismiss: () -> Unit,
+    viewModel: MainViewModel,
+    themeColors: ReadingThemeColors,
+    colors: SalatColorPalette
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    
+    val selectedZone by viewModel.selectedPrayerZone.collectAsStateWithLifecycle()
+    val selectedAuthority by viewModel.selectedAuthority.collectAsStateWithLifecycle()
+    val isHanafiAsr by viewModel.isHanafiAsr.collectAsStateWithLifecycle()
+    val minuteOffsets by viewModel.prayerManualMinuteOffsets.collectAsStateWithLifecycle()
+    val hijriOffset by viewModel.hijriAdjustmentDays.collectAsStateWithLifecycle()
+    val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
+    
+    val isArabic = appLanguage.equals("Arabic", ignoreCase = true) ||
+            appLanguage == "العربية" ||
+            appLanguage.startsWith("ar", ignoreCase = true)
+
+    var currentYearMonth by remember { mutableStateOf(java.time.YearMonth.now()) }
+    val daysInMonth = remember(currentYearMonth) { currentYearMonth.lengthOfMonth() }
+    
+    val monthPrayerTimes = remember(currentYearMonth, selectedZone, selectedAuthority, isHanafiAsr, minuteOffsets) {
+        (1..daysInMonth).map { day ->
+            val date = java.time.LocalDate.of(currentYearMonth.year, currentYearMonth.monthValue, day)
+            val times = viewModel.repository.calculatePrayerTimes(
+                zone = selectedZone,
+                authority = selectedAuthority,
+                isHanafiAsr = isHanafiAsr,
+                date = date,
+                minuteOffsets = minuteOffsets
+            )
+            date to times
+        }
+    }
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.pageBackground,
+        dragHandle = null
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(top = 12.dp)
+        ) {
+            // Header Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = if (isArabic) "مواقيت الصلاة الشهرية" else "MONTHLY TIMETABLE",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.salatGreen,
+                            letterSpacing = 1.sp
+                        )
+                    )
+                    Text(
+                        text = if (isArabic) selectedZone.arabicName else selectedZone.name,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.titleText
+                        )
+                    )
+                }
+                
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(colors.activeRowBg, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = colors.titleText,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            
+            HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
+            
+            // Month Switcher Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val nowMonth = remember { java.time.YearMonth.now() }
+                val maxMonth = remember { nowMonth.plusMonths(1) }
+                val canGoPrev = currentYearMonth.isAfter(nowMonth)
+                val canGoNext = currentYearMonth.isBefore(maxMonth)
+
+                IconButton(
+                    onClick = { if (canGoPrev) currentYearMonth = currentYearMonth.minusMonths(1) },
+                    enabled = canGoPrev,
+                    modifier = Modifier.background(
+                        if (canGoPrev) colors.activeRowBg else colors.activeRowBg.copy(alpha = 0.4f),
+                        RoundedCornerShape(12.dp)
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Previous Month",
+                        tint = if (canGoPrev) colors.titleText else colors.titleText.copy(alpha = 0.4f),
+                        modifier = Modifier.graphicsLayer(rotationZ = 90f)
+                    )
+                }
+                
+                Text(
+                    text = currentYearMonth.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault()) + " " + currentYearMonth.year,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.titleText
+                    )
+                )
+                
+                IconButton(
+                    onClick = { if (canGoNext) currentYearMonth = currentYearMonth.plusMonths(1) },
+                    enabled = canGoNext,
+                    modifier = Modifier.background(
+                        if (canGoNext) colors.activeRowBg else colors.activeRowBg.copy(alpha = 0.4f),
+                        RoundedCornerShape(12.dp)
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Next Month",
+                        tint = if (canGoNext) colors.titleText else colors.titleText.copy(alpha = 0.4f),
+                        modifier = Modifier.graphicsLayer(rotationZ = -90f)
+                    )
+                }
+            }
+            
+            // Spreadsheet Table
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .background(colors.cardBackground, RoundedCornerShape(24.dp))
+                    .border(1.dp, colors.cardBorder, RoundedCornerShape(24.dp))
+            ) {
+                val sharedHorizontalScrollState = rememberScrollState()
+                
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Header Row with Sticky Date Column on the left
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(colors.activeRowBg, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                            .height(IntrinsicSize.Min),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Static sticky Date Header
+                        Box(
+                            modifier = Modifier
+                                .width(90.dp)
+                                .fillMaxHeight()
+                                .padding(vertical = 12.dp, horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            TableCellHeader(text = if (isArabic) "التاريخ" else "Date", colors = colors)
+                        }
+                        
+                        // Vertical divider
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .fillMaxHeight()
+                                .background(colors.cardBorder)
+                        )
+                        
+                        // Horizontally scrollable prayer headers (completely spelled out with comfortable width)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .horizontalScroll(sharedHorizontalScrollState)
+                                .padding(vertical = 12.dp, horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TableCellHeader(text = if (isArabic) "الفجر" else "Fajr", colors = colors, modifier = Modifier.width(85.dp))
+                            TableCellHeader(text = if (isArabic) "الشروق" else "Sunrise", colors = colors, modifier = Modifier.width(85.dp))
+                            TableCellHeader(text = if (isArabic) "الظهر" else "Dhuhr", colors = colors, modifier = Modifier.width(85.dp))
+                            TableCellHeader(text = if (isArabic) "العصر" else "Asr", colors = colors, modifier = Modifier.width(85.dp))
+                            TableCellHeader(text = if (isArabic) "المغرب" else "Maghrib", colors = colors, modifier = Modifier.width(85.dp))
+                            TableCellHeader(text = if (isArabic) "العشاء" else "Isha", colors = colors, modifier = Modifier.width(85.dp))
+                        }
+                    }
+                    
+                    HorizontalDivider(color = colors.cardBorder)
+                    
+                    // Scrollable vertical data container
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        (1..daysInMonth).forEach { index ->
+                            val dayNum = index
+                            val (date, times) = monthPrayerTimes[index - 1]
+                            val isToday = date == java.time.LocalDate.now()
+                            
+                            val dayOfWeek = date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())
+                            val hijriStr = getHijriDateStringForCalendar(date, hijriOffset, isArabic)
+                            
+                            Surface(
+                                color = if (isToday) colors.salatGreen.copy(alpha = 0.12f) else Color.Transparent,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(IntrinsicSize.Min),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Left sticky part (Date cell)
+                                        Box(
+                                            modifier = Modifier
+                                                .width(90.dp)
+                                                .fillMaxHeight()
+                                                .background(if (isToday) colors.salatGreen.copy(alpha = 0.12f) else colors.cardBackground)
+                                                .padding(vertical = 8.dp, horizontal = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "$dayNum",
+                                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = if (isToday) colors.salatGreen else colors.titleText
+                                                        )
+                                                    )
+                                                    Text(
+                                                        text = dayOfWeek,
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            color = colors.subtext,
+                                                            fontSize = 10.sp
+                                                        )
+                                                    )
+                                                }
+                                                Text(
+                                                    text = hijriStr.substringBefore(" AH").substringBefore(" هـ").substringAfter(" "),
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        color = colors.subtext,
+                                                        fontSize = 8.5.sp
+                                                    ),
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                        
+                                        // Vertical separation line
+                                        Box(
+                                            modifier = Modifier
+                                                .width(1.dp)
+                                                .fillMaxHeight()
+                                                .background(colors.cardBorder)
+                                        )
+                                        
+                                        // Right part (horizontally scrollable prayer times)
+                                        Row(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .horizontalScroll(sharedHorizontalScrollState)
+                                                .padding(vertical = 8.dp, horizontal = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            TableCell(text = times.getOrNull(0)?.timeString ?: "", isNext = times.getOrNull(0)?.isNext == true, colors = colors, modifier = Modifier.width(85.dp))
+                                            TableCell(text = times.getOrNull(1)?.timeString ?: "", isNext = times.getOrNull(1)?.isNext == true, colors = colors, modifier = Modifier.width(85.dp))
+                                            TableCell(text = times.getOrNull(2)?.timeString ?: "", isNext = times.getOrNull(2)?.isNext == true, colors = colors, modifier = Modifier.width(85.dp))
+                                            TableCell(text = times.getOrNull(3)?.timeString ?: "", isNext = times.getOrNull(3)?.isNext == true, colors = colors, modifier = Modifier.width(85.dp))
+                                            TableCell(text = times.getOrNull(4)?.timeString ?: "", isNext = times.getOrNull(4)?.isNext == true, colors = colors, modifier = Modifier.width(85.dp))
+                                            TableCell(text = times.getOrNull(5)?.timeString ?: "", isNext = times.getOrNull(5)?.isNext == true, colors = colors, modifier = Modifier.width(85.dp))
+                                        }
+                                    }
+                                    
+                                    HorizontalDivider(
+                                        color = colors.cardBorder.copy(alpha = 0.5f),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun TableCellHeader(
+    text: String,
+    colors: SalatColorPalette,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontWeight = FontWeight.Bold,
+            color = colors.subtext,
+            fontSize = 11.sp
+        ),
+        modifier = modifier,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+    )
+}
+
+@Composable
+private fun TableCell(
+    text: String,
+    isNext: Boolean,
+    colors: SalatColorPalette,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium.copy(
+            fontWeight = if (isNext) FontWeight.Bold else FontWeight.Normal,
+            color = if (isNext) colors.salatGreen else colors.titleText,
+            fontSize = 12.sp
+        ),
+        modifier = modifier,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+    )
+}
+
+private fun getHijriDateStringForCalendar(localDate: java.time.LocalDate, offsetDays: Int, isArabic: Boolean): String {
+    return try {
+        val adjustedLocalDate = localDate.plusDays(offsetDays.toLong())
+        val hijriDate = java.time.chrono.HijrahDate.from(adjustedLocalDate)
+        val month = hijriDate.get(java.time.temporal.ChronoField.MONTH_OF_YEAR)
+        val day = hijriDate.get(java.time.temporal.ChronoField.DAY_OF_MONTH)
+        val year = hijriDate.get(java.time.temporal.ChronoField.YEAR)
+        
+        val monthNameEn = when (month) {
+            1 -> "Muharram"
+            2 -> "Safar"
+            3 -> "Rabi' al-Awwal"
+            4 -> "Rabi' ath-Thani"
+            5 -> "Jumada al-Awwal"
+            6 -> "Jumada ath-Thani"
+            7 -> "Rajab"
+            8 -> "Sha'ban"
+            9 -> "Ramadan"
+            10 -> "Shawwal"
+            11 -> "Dhu al-Qi'dah"
+            12 -> "Dhu al-Hijjah"
+            else -> "Ramadan"
+        }
+        
+        val monthNameAr = when (month) {
+            1 -> "محرم"
+            2 -> "صفر"
+            3 -> "ربيع الأول"
+            4 -> "ربيع الثاني"
+            5 -> "جمادى الأولى"
+            6 -> "جمادى الآخرة"
+            7 -> "رجب"
+            8 -> "شعبان"
+            9 -> "رمضان"
+            10 -> "شوال"
+            11 -> "ذو القعدة"
+            12 -> "ذو الحجة"
+            else -> "رمضان"
+        }
+        
+        if (isArabic) {
+            "$day $monthNameAr $year هـ"
+        } else {
+            "$day $monthNameEn $year AH"
+        }
+    } catch (e: Exception) {
+        if (isArabic) "١٤ رمضان ١٤٤٥ هـ" else "14 Ramadan 1445 AH"
     }
 }

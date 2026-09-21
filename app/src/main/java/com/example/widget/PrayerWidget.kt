@@ -112,7 +112,8 @@ class PrayerWidget : GlanceAppWidget() {
                     offsets[pName] = prefs.getInt("manual_offset_$pName", 0)
                 }
 
-                val today = LocalDate.now()
+                val zId = java.time.ZoneId.of(zone.timeZoneId)
+                val today = java.time.LocalDate.now(zId)
                 val allPrayers = PrayerCalculator.calculatePrayerTimesList(
                     zone = zone,
                     authority = auth,
