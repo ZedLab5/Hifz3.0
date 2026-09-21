@@ -378,7 +378,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             prefs.edit().putBoolean("cloud_sync_enabled", newVal).apply()
         } catch (e: Exception) {}
         triggerHaptic()
-        showToast(if (newVal) "Cloud Auto-Sync enabled" else "Cloud Auto-Sync paused")
+        showToast(if (newVal) "Local Mirror Syncing active" else "Local Mirror Syncing paused")
     }
 
     fun setDailyQuranGoal(pages: Int) {
@@ -1601,7 +1601,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             var lastMinute = -1
 
             while (true) {
-                val now = Calendar.getInstance()
+                val tz = java.util.TimeZone.getTimeZone(selectedPrayerZone.value.timeZoneId)
+                val now = Calendar.getInstance(tz)
                 val currentHour = now.get(Calendar.HOUR_OF_DAY)
                 val currentMin = now.get(Calendar.MINUTE)
                 val currentSec = now.get(Calendar.SECOND)

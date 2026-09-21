@@ -168,7 +168,7 @@ fun UserProfileScreen(
             NoorTopBar(
                 title = tr("profile_title", viewModel),
                 eyebrow = if (isArabic) "الملف الشخصي" else "SPIRITUAL PROFILE",
-                subtitle = if (isUserLoggedIn) userName else (if (isArabic) "الحساب والمزامنة السحابية" else "Account & Cloud Sync"),
+                subtitle = if (isUserLoggedIn) userName else (if (isArabic) "الملف الشخصي والخصوصية" else "Profile & Data Privacy"),
                 onBackClick = onNavigateBack,
                 backContentDescription = stringResource(R.string.action_back),
                 isDark = isDark,
@@ -461,7 +461,7 @@ private fun UserProfileHeader(
                 Spacer(modifier = Modifier.height(3.dp))
 
                 Text(
-                    text = if (isUserLoggedIn && userEmail.isNotBlank()) userEmail else "Tap to connect account & sync data",
+                    text = if (isUserLoggedIn && userEmail.isNotBlank()) userEmail else "Tap to personalize offline profile",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = themeColors.translationText,
                         fontSize = 12.sp
@@ -489,7 +489,7 @@ private fun UserProfileHeader(
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
-                            text = if (isUserLoggedIn) "Connected (Cloud Sync Active)" else "Guest Mode (Local Only)",
+                            text = if (isUserLoggedIn) "Offline Profile Active (100% Private)" else "Guest Mode (On-Device Only)",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (isUserLoggedIn) (if (isDark) themeColors.accent else SalatEmeraldPrimary) else themeColors.translationText,
@@ -522,7 +522,7 @@ private fun DataSyncSection(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "DATA & SYNCHRONIZATION",
+            text = "DATA & LOCAL PRIVACY",
             style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF5F5E5A),
@@ -589,7 +589,7 @@ private fun DataSyncSection(
 
                         Column {
                             Text(
-                                text = "Cloud Synchronization",
+                                text = "Local Mirror Syncing",
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = themeColors.arabicText,
@@ -1219,7 +1219,7 @@ private fun ConnectAccountBottomSheet(
                 .padding(horizontal = 24.dp, vertical = 20.dp)
         ) {
             Text(
-                text = "Connect Noor Account",
+                text = "Set Up Offline Profile",
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = themeColors.arabicText,
@@ -1228,7 +1228,7 @@ private fun ConnectAccountBottomSheet(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Sign in via Google, Apple or Email for secure cloud sync",
+                text = "Noor is 100% offline-first. Specify an offline profile to personalize your stats and records locally.",
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = themeColors.translationText,
                     fontSize = 13.sp
@@ -1286,7 +1286,7 @@ private fun ConnectAccountBottomSheet(
                 colors = ButtonDefaults.buttonColors(containerColor = if (isDark) themeColors.accent else SalatEmeraldPrimary)
             ) {
                 Text(
-                    text = "Connect & Sync",
+                    text = "Initialize Profile",
                     style = MaterialTheme.typography.labelLarge.copy(
                         color = Color.White,
                         fontWeight = FontWeight.Bold,

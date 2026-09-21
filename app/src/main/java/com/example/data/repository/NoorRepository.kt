@@ -657,7 +657,8 @@ class NoorRepository(
         isHanafiAsr: Boolean = false,
         minuteOffsets: Map<String, Int> = emptyMap()
     ): LocalDate {
-        val now = Calendar.getInstance()
+        val tz = java.util.TimeZone.getTimeZone(zone.timeZoneId)
+        val now = Calendar.getInstance(tz)
         val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
         val today = LocalDate.now()
         val times = PrayerCalculator.calculatePrayerTimesList(

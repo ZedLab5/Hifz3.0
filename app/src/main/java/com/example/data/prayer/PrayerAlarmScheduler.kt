@@ -80,6 +80,29 @@ object PrayerAlarmScheduler {
         timersMap: Map<String, Int>,
         enabledMap: Map<String, Boolean>
     ) {
+        val prefs = context.getSharedPreferences("noor_app_preferences", Context.MODE_PRIVATE)
+        val savedZoneId = prefs.getString("selected_prayer_zone_id", null)
+        val zone = com.example.data.repository.NoorRepository.prayerZones.find { it.id == savedZoneId }
+            ?: com.example.data.repository.NoorRepository.prayerZones.first()
+        val tz = java.util.TimeZone.getTimeZone(zone.timeZoneId)
+
+        val isHanafi = prefs.getBoolean("is_hanafi_asr", false)
+        val savedAuthId = prefs.getString("selected_calc_authority_id", null)
+        val auth = com.example.data.repository.NoorRepository.calculationAuthorities.find { it.id == savedAuthId }
+            ?: com.example.data.repository.NoorRepository.calculationAuthorities.first()
+
+        val offsets = mutableMapOf<String, Int>()
+        listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha").forEach { pName ->
+            offsets[pName] = prefs.getInt("manual_offset_$pName", 0)
+        }
+        val tomorrowPrayers = com.example.data.prayer.PrayerCalculator.calculatePrayerTimesList(
+            zone = zone,
+            authority = auth,
+            isHanafiAsr = isHanafi,
+            date = java.time.LocalDate.now().plusDays(1),
+            minuteOffsets = offsets
+        )
+
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
 
         for (prayer in prayers) {
@@ -128,34 +151,41 @@ object PrayerAlarmScheduler {
                 continue
             }
 
-            val now = Calendar.getInstance()
+            val now = java.util.Calendar.getInstance(tz)
 
             // 1. Schedule Main Alarm (Exact prayer time or delayed if offset > 0)
-            val mainCal = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, prayer.hour)
-                set(Calendar.MINUTE, prayer.minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
+            val mainCal = java.util.Calendar.getInstance(tz).apply {
+                set(java.util.Calendar.HOUR_OF_DAY, prayer.hour)
+                set(java.util.Calendar.MINUTE, prayer.minute)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
                 if (mainOffset > 0) {
-                    add(Calendar.MINUTE, mainOffset)
+                    add(java.util.Calendar.MINUTE, mainOffset)
                 }
             }
             if (mainCal.before(now)) {
-                mainCal.add(Calendar.DAY_OF_YEAR, 1)
+                val tomPrayer = tomorrowPrayers.find { it.name == prayer.name } ?: prayer
+                mainCal.set(java.util.Calendar.HOUR_OF_DAY, tomPrayer.hour)
+                mainCal.set(java.util.Calendar.MINUTE, tomPrayer.minute)
+                mainCal.add(java.util.Calendar.DAY_OF_YEAR, 1)
             }
             setAlarm(alarmManager, mainCal.timeInMillis, mainPendingIntent)
 
             // 2. Schedule Pre-Alert Alarm independently if negative offset is configured
             if (offsetMin < 0) {
-                val preCal = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, prayer.hour)
-                    set(Calendar.MINUTE, prayer.minute)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                    add(Calendar.MINUTE, offsetMin)
+                val preCal = java.util.Calendar.getInstance(tz).apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, prayer.hour)
+                    set(java.util.Calendar.MINUTE, prayer.minute)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                    add(java.util.Calendar.MINUTE, offsetMin)
                 }
                 if (preCal.before(now)) {
-                    preCal.add(Calendar.DAY_OF_YEAR, 1)
+                    val tomPrayer = tomorrowPrayers.find { it.name == prayer.name } ?: prayer
+                    preCal.set(java.util.Calendar.HOUR_OF_DAY, tomPrayer.hour)
+                    preCal.set(java.util.Calendar.MINUTE, tomPrayer.minute)
+                    preCal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                    preCal.add(java.util.Calendar.MINUTE, offsetMin)
                 }
                 setAlarm(alarmManager, preCal.timeInMillis, preAlertPendingIntent)
             } else {

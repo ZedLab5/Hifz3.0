@@ -162,8 +162,8 @@ object PrayerCalculator {
         isHanafiAsr: Boolean,
         date: LocalDate = LocalDate.now(),
         minuteOffsets: Map<String, Int> = emptyMap(),
-        currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY),
-        currentMinute: Int = Calendar.getInstance().get(Calendar.MINUTE)
+        currentHour: Int = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone(zone.timeZoneId)).get(java.util.Calendar.HOUR_OF_DAY),
+        currentMinute: Int = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone(zone.timeZoneId)).get(java.util.Calendar.MINUTE)
     ): List<PrayerTime> {
         val timeZone = try {
             val tz = TimeZone.getTimeZone(zone.timeZoneId)
