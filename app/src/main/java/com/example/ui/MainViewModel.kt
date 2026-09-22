@@ -48,6 +48,9 @@ import com.example.data.prayer.AdhanSound
 import com.example.data.prayer.PrayerAlarmScheduler
 import com.example.data.prayer.PrayerCalculator
 import com.example.data.quran.DuaData
+import com.example.data.notifications.SpiritualReminderRepository
+import com.example.data.notifications.SpiritualReminderState
+import com.example.data.notifications.SpiritualAlarmScheduler
 import com.example.data.quran.HifzAudioController
 import com.example.data.quran.HifzAudioState
 import com.example.data.quran.HifzWordTimingRepository
@@ -108,6 +111,7 @@ enum class NoorDestination {
     ALL_TOOLS,
     SETTINGS,
     NOTIFICATION_TROUBLESHOOTING,
+    NOTIFICATION_CENTER,
     QURAN_TAJWEED_GUIDE
 }
 
@@ -518,6 +522,95 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         adhanSoundVolume.value = clamped
         sharedPrefs.edit().putInt("adhan_volume", clamped).apply()
         AdhanPlayer.setVolume(clamped)
+    }
+
+    // ==========================================
+    // SPIRITUAL NOTIFICATION CENTER
+    // ==========================================
+    val spiritualRemindersState = MutableStateFlow<Map<String, SpiritualReminderState>>(
+        SpiritualReminderRepository.loadAllStates(sharedPrefs)
+    )
+
+    val activeSpiritualRemindersCount = spiritualRemindersState.map { map ->
+        map.values.count { it.isEnabled }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    fun toggleSpiritualReminder(id: String, enabled: Boolean) {
+        val currentMap = spiritualRemindersState.value.toMutableMap()
+        val currentState = currentMap[id] ?: return
+        val updatedState = currentState.copy(isEnabled = enabled)
+        currentMap[id] = updatedState
+        spiritualRemindersState.value = currentMap
+
+        SpiritualReminderRepository.saveState(sharedPrefs, id, updatedState)
+        if (enabled) {
+            SpiritualAlarmScheduler.scheduleReminder(getApplication(), id, updatedState.hour, updatedState.minute)
+        } else {
+            SpiritualAlarmScheduler.cancelReminder(getApplication(), id)
+        }
+        triggerHaptic()
+    }
+
+    fun updateSpiritualReminderTime(id: String, hour: Int, minute: Int) {
+        val currentMap = spiritualRemindersState.value.toMutableMap()
+        val currentState = currentMap[id] ?: return
+        val updatedState = currentState.copy(hour = hour, minute = minute)
+        currentMap[id] = updatedState
+        spiritualRemindersState.value = currentMap
+
+        SpiritualReminderRepository.saveState(sharedPrefs, id, updatedState)
+        if (updatedState.isEnabled) {
+            SpiritualAlarmScheduler.scheduleReminder(getApplication(), id, hour, minute)
+        }
+        triggerHaptic()
+    }
+
+    fun muteAllSpiritualReminders() {
+        val currentMap = spiritualRemindersState.value.toMutableMap()
+        for ((id, state) in currentMap) {
+            val muted = state.copy(isEnabled = false)
+            currentMap[id] = muted
+            SpiritualReminderRepository.saveState(sharedPrefs, id, muted)
+            SpiritualAlarmScheduler.cancelReminder(getApplication(), id)
+        }
+        spiritualRemindersState.value = currentMap
+        triggerHaptic()
+        showToast(if (isArabicLanguage()) "تم كتم جميع التذكيرات" else "All spiritual reminders muted")
+    }
+
+    fun restoreRecommendedSpiritualReminders() {
+        val currentMap = mutableMapOf<String, SpiritualReminderState>()
+        for (item in SpiritualReminderRepository.reminders) {
+            val state = SpiritualReminderState(
+                isEnabled = item.defaultEnabled,
+                hour = item.defaultHour,
+                minute = item.defaultMinute
+            )
+            currentMap[item.id] = state
+            SpiritualReminderRepository.saveState(sharedPrefs, item.id, state)
+            if (state.isEnabled) {
+                SpiritualAlarmScheduler.scheduleReminder(getApplication(), item.id, state.hour, state.minute)
+            } else {
+                SpiritualAlarmScheduler.cancelReminder(getApplication(), item.id)
+            }
+        }
+        spiritualRemindersState.value = currentMap
+        triggerHaptic()
+        showToast(if (isArabicLanguage()) "تمت استعادة التذكيرات الموصى بها" else "Recommended reminders restored")
+    }
+
+    fun sendTestSpiritualNotification(id: String) {
+        viewModelScope.launch {
+            val message = if (isArabicLanguage()) {
+                "سيصل الإشعار التجريبي بعد 10 ثوانٍ ⏰ أغلق شاشة الهاتف الآن لتجربته على شاشة القفل!"
+            } else {
+                "Test notification will trigger in 10s. Lock your phone now to test on lockscreen! ⏰"
+            }
+            showToast(message)
+            delay(10000)
+            NoorNotificationHelper.showSpiritualReminder(getApplication(), id)
+            triggerHaptic()
+        }
     }
 
     // Room Database Streams
@@ -1116,6 +1209,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val isShortcutsSheetOpen = MutableStateFlow(false)
     val isHomeTutorialRequested = MutableStateFlow(false)
     val hasSeenHomeTutorial = MutableStateFlow(sharedPrefs.getBoolean("has_seen_home_tutorial", false))
+    val hasSeenOnboarding = MutableStateFlow(sharedPrefs.getBoolean("has_seen_onboarding", false))
     val isTutorialActive = MutableStateFlow(false)
 
     // Quran Reader State
@@ -1426,7 +1520,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } catch (_: Exception) {}
         AyahSplitRepository.init(application)
         NoorNotificationHelper.createNotificationChannels(application)
+        SpiritualAlarmScheduler.rescheduleAll(application)
         hasSeenHomeTutorial.value = sharedPrefs.getBoolean("has_seen_home_tutorial", false)
+        hasSeenOnboarding.value = sharedPrefs.getBoolean("has_seen_onboarding", false)
         showArabicInAzkarCards.value = sharedPrefs.getBoolean("show_arabic_in_azkar_cards", true)
         azkarTextSize.value = sharedPrefs.getString("azkar_text_size", "Small") ?: "Small"
         isAzkarAutoScrollEnabled.value = sharedPrefs.getBoolean("azkar_auto_scroll", true)
@@ -4178,6 +4274,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun markHomeTutorialAsSeen() {
         hasSeenHomeTutorial.value = true
         sharedPrefs.edit().putBoolean("has_seen_home_tutorial", true).apply()
+    }
+
+    fun completeOnboarding(focusSelections: Set<String>) {
+        sharedPrefs.edit().putBoolean("has_seen_onboarding", true).apply()
+        sharedPrefs.edit().putStringSet("onboarding_focus_selections", focusSelections).apply()
+        hasSeenOnboarding.value = true
+    }
+
+    fun skipOnboarding() {
+        sharedPrefs.edit().putBoolean("has_seen_onboarding", true).apply()
+        hasSeenOnboarding.value = true
     }
 
     fun toggleQuickAccessTool(tool: QuickAccessTool) {

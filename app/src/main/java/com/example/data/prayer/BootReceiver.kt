@@ -25,6 +25,7 @@ class BootReceiver : BroadcastReceiver() {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     AlarmRescheduler.rescheduleFromSavedSettings(context)
+                    com.example.data.notifications.SpiritualAlarmScheduler.rescheduleAll(context)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 } finally {

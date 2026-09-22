@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -54,8 +55,24 @@ class MainActivity : ComponentActivity() {
         com.example.widget.PrayerWidgetUpdater.updateAsync(applicationContext)
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleNotificationNavigation(intent)
+    }
+
+    private fun handleNotificationNavigation(intent: Intent?) {
+        val destName = intent?.getStringExtra("target_destination") ?: return
+        try {
+            val dest = com.example.ui.NoorDestination.valueOf(destName)
+            viewModel.navigateTo(dest)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleNotificationNavigation(intent)
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

@@ -54,7 +54,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -114,6 +117,7 @@ fun NotificationTroubleshootingScreen(
     // Trigger state to re-run diagnostics
     var refreshKey by remember { mutableStateOf(0) }
     var isTestPlaying by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Re-check diagnostics whenever the user returns from system settings
     DisposableEffect(lifecycleOwner) {
@@ -544,20 +548,23 @@ fun NotificationTroubleshootingScreen(
                                         isTestPlaying = false
                                         viewModel.showToast("Test audio stopped")
                                     } else {
-                                        NoorNotificationHelper.showPrayerAlert(
-                                            context = context,
-                                            prayerName = "Salat Test",
-                                            timeFormatted = "Now",
-                                            isPreAlert = false,
-                                            offsetMinutes = 0
-                                        )
-                                        AdhanPlayer.play(
-                                            context = context,
-                                            prayerName = "Salat",
-                                            isSnooze = true
-                                        )
-                                        isTestPlaying = true
-                                        viewModel.showToast("Playing test Adhan & notification sent!")
+                                        coroutineScope.launch {
+                                            viewModel.showToast("Test will trigger in 10s. Lock your screen now! ⏰")
+                                            delay(10000)
+                                            NoorNotificationHelper.showPrayerAlert(
+                                                context = context,
+                                                prayerName = "Salat Test",
+                                                timeFormatted = "Now",
+                                                isPreAlert = false,
+                                                offsetMinutes = 0
+                                            )
+                                            AdhanPlayer.play(
+                                                context = context,
+                                                prayerName = "Salat",
+                                                isSnooze = true
+                                            )
+                                            isTestPlaying = true
+                                        }
                                     }
                                 },
                                 shape = RoundedCornerShape(12.dp),

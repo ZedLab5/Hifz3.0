@@ -153,6 +153,7 @@ fun AppSettingsScreen(
     val morningAzkarNotif by viewModel.morningEveningAzkarNotification.collectAsStateWithLifecycle()
     val dailyAyahNotif by viewModel.dailyAyahNotification.collectAsStateWithLifecycle()
     val qazaNotif by viewModel.qazaReminderNotification.collectAsStateWithLifecycle()
+    val activeSpiritualNotifs by viewModel.activeSpiritualRemindersCount.collectAsStateWithLifecycle()
     val isStreakTrackingEnabled by viewModel.isStreakTrackingEnabled.collectAsStateWithLifecycle()
     val vibrateAdhan by viewModel.vibrationOnAdhan.collectAsStateWithLifecycle()
     val adhanVolume by viewModel.adhanSoundVolume.collectAsStateWithLifecycle()
@@ -421,6 +422,26 @@ fun AppSettingsScreen(
                         title = "NOTIFICATIONS & AUDIO",
                         themeColors = themeColors
                     ) {
+                        // 0. Comprehensive Spiritual Notification Center
+                        SettingsClickableRow(
+                            icon = Icons.Default.NotificationsActive,
+                            title = if (isArabic) "مركز الإشعارات والتذكيرات" else "Spiritual Notification Center",
+                            subtitle = if (isArabic)
+                                "تحكم كامل ومخصص في تذكيرات الحفظ، الأذكار، النوافل، ورد الختمة، وسلسلة الالتزام ($activeSpiritualNotifs مفعّل)."
+                            else
+                                "Full control over Hifz sessions, Azkar routines, Sunnah prayers, Khatma targets, and streak reminders ($activeSpiritualNotifs Active).",
+                            onClick = {
+                                viewModel.navigateTo(NoorDestination.NOTIFICATION_CENTER)
+                            },
+                            themeColors = themeColors,
+                            testTag = "row_spiritual_notification_center"
+                        )
+
+                        HorizontalDivider(
+                            color = (if (isDarkMode) themeColors.border else SalatDivider).copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
                         // 1. Azkar Notifications
                         SettingsToggleRow(
                             icon = Icons.Default.WbSunny,

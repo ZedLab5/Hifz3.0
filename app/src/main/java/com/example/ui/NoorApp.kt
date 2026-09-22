@@ -2,6 +2,11 @@ package com.example.ui
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberCoroutineScope
+import com.example.ui.onboarding.OnboardingScreen
+import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -224,6 +229,31 @@ fun NoorApp(
     val hasSeenHomeTutorial by viewModel.hasSeenHomeTutorial.collectAsStateWithLifecycle()
     val homeSpotlightState = remember { SpotlightState() }
     val context = LocalContext.current
+    val hasSeenOnboarding by viewModel.hasSeenOnboarding.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            viewModel.showToast(if (isArabic) "يرجى تمكين الإشعارات من إعدادات الهاتف لتلقي تنبيهات الصلاة." else "Please enable notifications in system settings to receive prayer alerts.")
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            coroutineScope.launch {
+                val resolvedZone = com.example.data.prayer.GpsLocationResolver.resolveCurrentZone(context)
+                if (resolvedZone != null) {
+                    viewModel.selectPrayerZone(resolvedZone)
+                }
+            }
+        } else {
+            viewModel.showToast(if (isArabic) "يرجى تمكين تحديد الموقع لتلقي مواقيت صلاة دقيقة تلقائياً." else "Please enable location to receive accurate prayer times automatically.")
+        }
+    }
 
     LaunchedEffect(isHomeTutorialRequested, hasSeenHomeTutorial, currentDest) {
         // Spotlight tutorial temporarily hidden until explicitly reactivated
@@ -249,8 +279,27 @@ fun NoorApp(
         com.example.ui.theme.LocalAppThemeMode provides appThemeMode,
         LocalHomeSpotlightState provides homeSpotlightState
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Scaffold(
+        if (!hasSeenOnboarding) {
+            OnboardingScreen(
+                zones = viewModel.prayerZones,
+                requestNotifications = {
+                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                },
+                requestLocation = {
+                    locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                },
+                onComplete = { focusSelections, language, theme, reqNotif, reqLoc ->
+                    viewModel.completeOnboarding(focusSelections)
+                    viewModel.navigateTo(NoorDestination.HOME)
+                },
+                onSkip = {
+                    viewModel.skipOnboarding()
+                    viewModel.navigateTo(NoorDestination.HOME)
+                }
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
@@ -403,6 +452,10 @@ fun NoorApp(
                             onNavigateBack = { viewModel.navigateBack() }
                         )
                         NoorDestination.NOTIFICATION_TROUBLESHOOTING -> com.example.ui.settings.NotificationTroubleshootingScreen(
+                            viewModel = viewModel,
+                            onBack = { viewModel.navigateBack() }
+                        )
+                        NoorDestination.NOTIFICATION_CENTER -> com.example.ui.notifications.NotificationCenterScreen(
                             viewModel = viewModel,
                             onBack = { viewModel.navigateBack() }
                         )
@@ -577,6 +630,7 @@ fun NoorApp(
             onDismiss = { showBatteryPrompt = false }
         )
     }
+            }
         }
     }
 }

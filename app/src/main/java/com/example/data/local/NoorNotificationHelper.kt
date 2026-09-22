@@ -14,9 +14,12 @@ import com.example.data.prayer.PrayerAlarmScheduler
 
 object NoorNotificationHelper {
 
-    const val CHANNEL_PRAYER_ALERTS = "noor_prayer_alerts"
-    const val CHANNEL_ATHKAR_REMINDERS = "noor_athkar_reminders"
-    const val CHANNEL_KHATMA_REMINDERS = "noor_khatma_reminders"
+    const val CHANNEL_PRAYER_ALERTS = "noor_prayer_alerts_v2"
+    const val CHANNEL_ATHKAR_REMINDERS = "noor_athkar_reminders_v2"
+    const val CHANNEL_KHATMA_REMINDERS = "noor_khatma_reminders_v2"
+    const val CHANNEL_HIFZ_REMINDERS = "noor_hifz_reminders_v2"
+    const val CHANNEL_SUNNAH_REMINDERS = "noor_sunnah_reminders_v2"
+    const val CHANNEL_STREAK_REMINDERS = "noor_streak_reminders_v2"
 
     fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -29,26 +32,68 @@ object NoorNotificationHelper {
             ).apply {
                 description = "Gentle alerts before and during prayer times."
                 enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
             }
 
             val athkarChannel = NotificationChannel(
                 CHANNEL_ATHKAR_REMINDERS,
                 "Daily Athkar & Sunnah Reminders",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Morning and Evening Athkar routines."
                 enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
             }
 
             val khatmaChannel = NotificationChannel(
                 CHANNEL_KHATMA_REMINDERS,
                 "Khatma Reading Goals",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Gentle daily Quran reading milestones and target reminders."
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
             }
 
-            notificationManager.createNotificationChannels(listOf(prayerChannel, athkarChannel, khatmaChannel))
+            val hifzChannel = NotificationChannel(
+                CHANNEL_HIFZ_REMINDERS,
+                "Quran Hifz & Memorization",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Daily memorization revision and review sessions."
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
+            }
+
+            val sunnahChannel = NotificationChannel(
+                CHANNEL_SUNNAH_REMINDERS,
+                "Voluntary Prayers & Fasting",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Tahajjud, Duha, Sunnah Fasting, and Qaza prayer reminders."
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
+            }
+
+            val streakChannel = NotificationChannel(
+                CHANNEL_STREAK_REMINDERS,
+                "Streak Safeguards & Consistency",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Spiritual habit tracking and daily consistency safeguards."
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
+            }
+
+            notificationManager.createNotificationChannels(
+                listOf(prayerChannel, athkarChannel, khatmaChannel, hifzChannel, sunnahChannel, streakChannel)
+            )
         }
     }
 
@@ -86,9 +131,10 @@ object NoorNotificationHelper {
                 .setContentTitle(title)
                 .setContentText(content)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(content))
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
                 .setContentIntent(contentPendingIntent)
                 .setAutoCancel(true)
 
@@ -196,16 +242,73 @@ object NoorNotificationHelper {
         )
     }
 
+    fun showSpiritualReminder(context: Context, reminderId: String) {
+        val item = com.example.data.notifications.SpiritualReminderRepository.getItem(reminderId) ?: return
+        val prefs = context.getSharedPreferences("noor_prefs", Context.MODE_PRIVATE)
+        val appLang = prefs.getString("app_language", "English") ?: "English"
+        val isArabic = appLang.equals("Arabic", ignoreCase = true) || appLang == "العربية" || appLang.startsWith("ar", ignoreCase = true)
+
+        val title = if (isArabic) item.titleAr else item.titleEn
+        val content = if (isArabic) item.descriptionAr else item.descriptionEn
+
+        val channelId = when (item.category) {
+            com.example.data.notifications.SpiritualReminderCategory.QURAN_HIFZ -> {
+                if (item.id == com.example.data.notifications.SpiritualReminderRepository.ID_KHATMA_TARGET) {
+                    CHANNEL_KHATMA_REMINDERS
+                } else {
+                    CHANNEL_HIFZ_REMINDERS
+                }
+            }
+            com.example.data.notifications.SpiritualReminderCategory.DAILY_AZKAR -> CHANNEL_ATHKAR_REMINDERS
+            com.example.data.notifications.SpiritualReminderCategory.VOLUNTARY_WORSHIP -> CHANNEL_SUNNAH_REMINDERS
+            com.example.data.notifications.SpiritualReminderCategory.CONSISTENCY -> CHANNEL_STREAK_REMINDERS
+        }
+
+        val notificationId = 5000 + (item.id.hashCode() and 0x7FFFFFFF) % 1000
+
+        showNotification(
+            context = context,
+            channelId = channelId,
+            notificationId = notificationId,
+            title = title,
+            content = content,
+            targetDestination = item.targetDestination.name
+        )
+    }
+
+    fun showUniversalTestNotification(context: Context) {
+        val prefs = context.getSharedPreferences("noor_prefs", Context.MODE_PRIVATE)
+        val appLang = prefs.getString("app_language", "English") ?: "English"
+        val isArabic = appLang.equals("Arabic", ignoreCase = true) || appLang == "العربية" || appLang.startsWith("ar", ignoreCase = true)
+
+        val title = if (isArabic) "🔔 فحص إشعارات النظام الشامل" else "🔔 Universal System Notification Test"
+        val content = if (isArabic) 
+            "ممتاز! الإشعارات تعمل بشكل مثالي وتظهر على شاشة القفل الآن." 
+            else "Perfect! System notifications are working flawlessly on your lockscreen."
+
+        showNotification(
+            context = context,
+            channelId = CHANNEL_PRAYER_ALERTS,
+            notificationId = 9999,
+            title = title,
+            content = content
+        )
+    }
+
     private fun showNotification(
         context: Context,
         channelId: String,
         notificationId: Int,
         title: String,
-        content: String
+        content: String,
+        targetDestination: String? = null
     ) {
         try {
             val intent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                if (targetDestination != null) {
+                    putExtra("target_destination", targetDestination)
+                }
             }
             val pendingIntent = PendingIntent.getActivity(
                 context,
@@ -219,7 +322,10 @@ object NoorNotificationHelper {
                 .setContentTitle(title)
                 .setContentText(content)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(content))
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
 
