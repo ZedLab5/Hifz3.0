@@ -81,9 +81,14 @@ object PrayerAlarmScheduler {
         enabledMap: Map<String, Boolean>
     ) {
         val prefs = context.getSharedPreferences("noor_app_preferences", Context.MODE_PRIVATE)
+        val isLocationConfigured = prefs.getBoolean("is_location_configured", false)
+        if (!isLocationConfigured) {
+            cancelAll(context)
+            return
+        }
         val savedZoneId = prefs.getString("selected_prayer_zone_id", null)
         val zone = com.example.data.repository.NoorRepository.prayerZones.find { it.id == savedZoneId }
-            ?: com.example.data.repository.NoorRepository.prayerZones.first()
+            ?: return
         val tz = java.util.TimeZone.getTimeZone(zone.timeZoneId)
 
         val isHanafi = prefs.getBoolean("is_hanafi_asr", false)

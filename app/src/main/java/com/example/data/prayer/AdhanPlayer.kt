@@ -15,6 +15,9 @@ import android.os.Looper
 import android.util.Log
 import com.example.R
 import com.example.data.local.NoorNotificationHelper
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -42,6 +45,9 @@ object AdhanPlayer {
 
     @Volatile
     private var currentState: PlayState = PlayState.IDLE
+
+    private val _isPlayingFlow = MutableStateFlow(false)
+    val isPlayingFlow: StateFlow<Boolean> = _isPlayingFlow.asStateFlow()
 
     private val currentSessionId = AtomicLong(0)
     private val isExplicitlyStopped = AtomicBoolean(false)
@@ -93,6 +99,7 @@ object AdhanPlayer {
         val sessionId = currentSessionId.incrementAndGet()
         isExplicitlyStopped.set(false)
         currentState = PlayState.PREPARING
+        _isPlayingFlow.value = true
         currentActivePrayer = prayerName
 
         registerVolumeObserver(context)
@@ -328,6 +335,7 @@ object AdhanPlayer {
 
         isExplicitlyStopped.set(true)
         currentState = PlayState.STOPPED
+        _isPlayingFlow.value = false
         currentSessionId.incrementAndGet()
 
         // Cancel timeout runnable

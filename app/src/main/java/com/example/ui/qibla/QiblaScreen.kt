@@ -116,6 +116,7 @@ fun QiblaScreen(
 ) {
     val context = LocalContext.current
     val selectedZone by viewModel.selectedPrayerZone.collectAsStateWithLifecycle()
+    val isLocationConfigured by viewModel.isLocationConfigured.collectAsStateWithLifecycle()
     val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
 
     val isArabic = appLanguage.equals("Arabic", ignoreCase = true) ||
@@ -267,7 +268,11 @@ fun QiblaScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Text(
-                                    text = "${selectedZone.name}, ${selectedZone.country}",
+                                    text = if (!isLocationConfigured) {
+                                        if (isArabic) "الموقع غير مفعّل" else "Location is Off"
+                                    } else {
+                                        "${selectedZone.name}, ${selectedZone.country}"
+                                    },
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = colorScheme.onSurface

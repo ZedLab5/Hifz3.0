@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
@@ -139,7 +140,8 @@ fun QuranMemorizationSetupScreen(
     val loopRange by viewModel.memorizationLoopRange.collectAsStateWithLifecycle()
     val audioSyncReveal by viewModel.memorizationAudioSyncReveal.collectAsStateWithLifecycle()
     val showTranslation by viewModel.memorizationShowTranslation.collectAsStateWithLifecycle()
-    val memorizedSet by viewModel.memorizedAyahsSet.collectAsStateWithLifecycle()
+    val memorizedPracticeSet by viewModel.memorizedPracticeSet.collectAsStateWithLifecycle()
+    val memorizedRecallSet by viewModel.memorizedRecallSet.collectAsStateWithLifecycle()
     val selectedReciter by viewModel.selectedReciter.collectAsStateWithLifecycle()
     val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
     val activeTab by viewModel.memorizationStudioTab.collectAsStateWithLifecycle()
@@ -159,6 +161,7 @@ fun QuranMemorizationSetupScreen(
     var activePreset by remember { mutableStateOf<HifzLevelPreset?>(HifzLevelPreset.INTERMEDIATE) }
 
     val batchSize = (endAyah - startAyah + 1).coerceAtLeast(1)
+    val memorizedSet = if (activeTab == 2) memorizedRecallSet else memorizedPracticeSet
     val memorizedCountInSurah = remember(surah, memorizedSet) {
         (1..surah.totalVerses).count { vNum ->
             memorizedSet.contains("${surah.number}_$vNum")
@@ -291,7 +294,7 @@ fun QuranMemorizationSetupScreen(
                             }
                         }
 
-                        // History Tab
+                        // Stats Tab
                         Surface(
                             modifier = Modifier
                                 .weight(1f)
@@ -299,7 +302,7 @@ fun QuranMemorizationSetupScreen(
                                 .clickable {
                                     viewModel.setMemorizationStudioTab(3)
                                 }
-                                .testTag("setup_tab_history"),
+                                .testTag("setup_tab_stats"),
                             shape = RoundedCornerShape(26.dp),
                             color = if (isHistory) themeColors.accent else Color.Transparent,
                             border = null,
@@ -313,14 +316,14 @@ fun QuranMemorizationSetupScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.History,
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                     contentDescription = null,
                                     tint = if (isHistory) Color.White else themeColors.translationText,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.size(6.dp))
                                 Text(
-                                    text = "History",
+                                    text = "Stats",
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontWeight = if (isHistory) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isHistory) Color.White else themeColors.arabicText,
@@ -455,11 +458,12 @@ fun QuranMemorizationSetupScreen(
 
             // === TAB-SPECIFIC CONFIGURATIONS ===
             if (activeTab == 3) {
-                // --- HISTORY VIEW ---
+                // --- STATS VIEW ---
                 item {
                     HifzHistoryContent(
                         sessionLogs = historyLogs,
-                        memorizedCount = memorizedSet.size,
+                        practiceMemorizedCount = memorizedPracticeSet.size,
+                        recallMemorizedCount = memorizedRecallSet.size,
                         themeColors = themeColors,
                         onDrillSession = { log ->
                             val targetSurah = com.example.data.quran.QuranData.surahs.firstOrNull { it.number == log.surahNumber } ?: surah

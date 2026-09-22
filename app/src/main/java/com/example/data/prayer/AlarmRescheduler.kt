@@ -11,6 +11,11 @@ object AlarmRescheduler {
     fun rescheduleFromSavedSettings(context: Context) {
         try {
             val prefs = context.getSharedPreferences("noor_app_preferences", Context.MODE_PRIVATE)
+            val isLocationConfigured = prefs.getBoolean("is_location_configured", false)
+            if (!isLocationConfigured) {
+                PrayerAlarmScheduler.cancelAll(context)
+                return
+            }
             val db = AppDatabase.getDatabase(context)
             val repository = NoorRepository(
                 dao = db.noorDao(),
@@ -20,7 +25,7 @@ object AlarmRescheduler {
             )
 
             val savedZoneId = prefs.getString("selected_prayer_zone_id", null)
-            val zone = repository.prayerZones.find { it.id == savedZoneId } ?: repository.prayerZones.first()
+            val zone = repository.prayerZones.find { it.id == savedZoneId } ?: return
             
             val savedAuthId = prefs.getString("selected_calc_authority_id", null)
             val auth = repository.calculationAuthorities.find { it.id == savedAuthId } ?: repository.calculationAuthorities.first()

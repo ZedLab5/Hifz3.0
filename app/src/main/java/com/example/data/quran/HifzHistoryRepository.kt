@@ -21,10 +21,11 @@ data class HifzSessionLog(
     val totalAyahs: Int,
     val ayahsMemorized: Int,
     val ayahsMissed: Int,
+    val ayahsStruggled: Int = 0,
     val hintsUsed: Int = 0,
     val durationSeconds: Int = 180,
     val repetitionsCompleted: Int = 3,
-    val scorePercentage: Int = if (totalAyahs > 0) ((ayahsMemorized.toFloat() / totalAyahs) * 100).toInt() else 100,
+    val scorePercentage: Int = if (totalAyahs > 0) (((ayahsMemorized.toFloat() - ayahsStruggled * 0.3f).coerceAtLeast(0f) / totalAyahs) * 100).toInt() else 100,
     val notes: String = ""
 ) {
     val formattedDate: String
@@ -88,6 +89,7 @@ object HifzHistoryRepository {
                         totalAyahs = obj.optInt("totalAyahs", 7),
                         ayahsMemorized = obj.optInt("ayahsMemorized", 7),
                         ayahsMissed = obj.optInt("ayahsMissed", 0),
+                        ayahsStruggled = obj.optInt("ayahsStruggled", 0),
                         hintsUsed = obj.optInt("hintsUsed", 0),
                         durationSeconds = obj.optInt("durationSeconds", 180),
                         repetitionsCompleted = obj.optInt("repetitionsCompleted", 3),
@@ -130,6 +132,7 @@ object HifzHistoryRepository {
                 put("totalAyahs", log.totalAyahs)
                 put("ayahsMemorized", log.ayahsMemorized)
                 put("ayahsMissed", log.ayahsMissed)
+                put("ayahsStruggled", log.ayahsStruggled)
                 put("hintsUsed", log.hintsUsed)
                 put("durationSeconds", log.durationSeconds)
                 put("repetitionsCompleted", log.repetitionsCompleted)

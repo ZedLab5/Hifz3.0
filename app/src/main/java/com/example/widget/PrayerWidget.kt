@@ -100,6 +100,28 @@ class PrayerWidget : GlanceAppWidget() {
         fun loadPrayerData(context: Context): PrayerWidgetData {
             return try {
                 val prefs = context.getSharedPreferences("noor_app_preferences", Context.MODE_PRIVATE)
+                val isLocationConfigured = prefs.getBoolean("is_location_configured", false)
+                val today = java.time.LocalDate.now()
+                val dateStr = DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH).format(today)
+
+                if (!isLocationConfigured) {
+                    return PrayerWidgetData(
+                        cityName = "Location is Off",
+                        dateFormatted = dateStr,
+                        nextPrayerName = "Salat",
+                        nextPrayerArabic = "الصلاة",
+                        nextPrayerTime = "--:--",
+                        prayers = listOf(
+                            PrayerTime("Fajr", "الفجر", "--:--", 0, 0),
+                            PrayerTime("Sunrise", "الشروق", "--:--", 0, 0),
+                            PrayerTime("Dhuhr", "الظهر", "--:--", 0, 0),
+                            PrayerTime("Asr", "العصر", "--:--", 0, 0),
+                            PrayerTime("Maghrib", "المغرب", "--:--", 0, 0),
+                            PrayerTime("Isha", "العشاء", "--:--", 0, 0)
+                        )
+                    )
+                }
+
                 val savedZoneId = prefs.getString("selected_prayer_zone_id", null)
                 val zone = NoorRepository.prayerZones.find { it.id == savedZoneId } ?: NoorRepository.prayerZones.first()
                 val savedAuthId = prefs.getString("selected_calc_authority_id", null)
@@ -113,25 +135,25 @@ class PrayerWidget : GlanceAppWidget() {
                 }
 
                 val zId = java.time.ZoneId.of(zone.timeZoneId)
-                val today = java.time.LocalDate.now(zId)
+                val zoneToday = java.time.LocalDate.now(zId)
                 val allPrayers = PrayerCalculator.calculatePrayerTimesList(
                     zone = zone,
                     authority = auth,
                     isHanafiAsr = isHanafi,
-                    date = today,
+                    date = zoneToday,
                     minuteOffsets = offsets
                 )
 
                 val salatPrayers = allPrayers.filter { it.name != "Sunrise" }
                 val nextPrayer = salatPrayers.find { it.isNext }
                     ?: salatPrayers.firstOrNull()
-                    ?: PrayerTime("Fajr", "الفجر", "05:00", 5, 0, isNext = true)
+                    ?: PrayerTime("Fajr", "الفجر", "--:--", 0, 0, isNext = true)
 
-                val dateStr = DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH).format(today)
+                val formattedZoneDate = DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH).format(zoneToday)
 
                 PrayerWidgetData(
                     cityName = customLocation,
-                    dateFormatted = dateStr,
+                    dateFormatted = formattedZoneDate,
                     nextPrayerName = nextPrayer.name,
                     nextPrayerArabic = nextPrayer.arabicName,
                     nextPrayerTime = nextPrayer.timeString,
@@ -144,18 +166,18 @@ class PrayerWidget : GlanceAppWidget() {
         }
 
         private fun fallbackData() = PrayerWidgetData(
-            cityName = "Noor",
+            cityName = "Location is Off",
             dateFormatted = "Today",
-            nextPrayerName = "Fajr",
-            nextPrayerArabic = "الفجر",
-            nextPrayerTime = "05:00",
+            nextPrayerName = "Salat",
+            nextPrayerArabic = "الصلاة",
+            nextPrayerTime = "--:--",
             prayers = listOf(
-                PrayerTime("Fajr", "الفجر", "05:00", 5, 0, isNext = true),
-                PrayerTime("Sunrise", "الشروق", "06:30", 6, 30),
-                PrayerTime("Dhuhr", "الظهر", "12:30", 12, 30),
-                PrayerTime("Asr", "العصر", "15:45", 15, 45),
-                PrayerTime("Maghrib", "المغرب", "18:20", 18, 20),
-                PrayerTime("Isha", "العشاء", "19:50", 19, 50)
+                PrayerTime("Fajr", "الفجر", "--:--", 0, 0, isNext = true),
+                PrayerTime("Sunrise", "الشروق", "--:--", 0, 0),
+                PrayerTime("Dhuhr", "الظهر", "--:--", 0, 0),
+                PrayerTime("Asr", "العصر", "--:--", 0, 0),
+                PrayerTime("Maghrib", "المغرب", "--:--", 0, 0),
+                PrayerTime("Isha", "العشاء", "--:--", 0, 0)
             )
         )
     }

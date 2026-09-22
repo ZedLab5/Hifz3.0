@@ -70,6 +70,7 @@ import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
@@ -203,7 +204,8 @@ fun QuranMemorizationScreen(
     val loopRange by viewModel.memorizationLoopRange.collectAsStateWithLifecycle()
     val audioSyncReveal by viewModel.memorizationAudioSyncReveal.collectAsStateWithLifecycle()
     val showTranslation by viewModel.memorizationShowTranslation.collectAsStateWithLifecycle()
-    val memorizedSet by viewModel.memorizedAyahsSet.collectAsStateWithLifecycle()
+    val practiceMemorizedSet by viewModel.memorizedPracticeSet.collectAsStateWithLifecycle()
+    val recallMemorizedSet by viewModel.memorizedRecallSet.collectAsStateWithLifecycle()
     val activeTab by viewModel.memorizationStudioTab.collectAsStateWithLifecycle()
     val delayActive by viewModel.memorizationDelayActive.collectAsStateWithLifecycle()
     val delayCountdown by viewModel.memorizationDelayCountdown.collectAsStateWithLifecycle()
@@ -228,6 +230,8 @@ fun QuranMemorizationScreen(
     val selectedReciter by viewModel.selectedReciter.collectAsStateWithLifecycle()
     val arabicFontSize by viewModel.arabicFontSizeSp.collectAsStateWithLifecycle()
     val arabicFont by viewModel.selectedArabicFont.collectAsStateWithLifecycle()
+    val isTajweedEnabled by viewModel.isTajweedEnabled.collectAsStateWithLifecycle()
+    val tajweedButtonPosition by viewModel.tajweedButtonPosition.collectAsStateWithLifecycle()
     val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
 
     val themeColors = remember(isDarkMode) {
@@ -261,6 +265,7 @@ fun QuranMemorizationScreen(
     var showPatternSettingsSheet by remember { mutableStateOf(false) }
     var showJumpSettingsSheet by remember { mutableStateOf(false) }
     var showRangeSettingsSheet by remember { mutableStateOf(false) }
+    var showTajweedQuickReminder by remember { mutableStateOf(false) }
     var hintTriggerToken by remember { mutableStateOf(0) }
     val headerChipsScrollState = rememberLazyListState()
 
@@ -273,9 +278,10 @@ fun QuranMemorizationScreen(
     }
     val isSurahDataLoading = surah.verses.isEmpty()
 
-    val memorizedCountInSurah = remember(surah, memorizedSet) {
+    val activeMemorizedSet = if (activeView == HifzView.RECALL) recallMemorizedSet else practiceMemorizedSet
+    val memorizedCountInSurah = remember(surah, activeMemorizedSet) {
         (1..surah.totalVerses).count { vNum ->
-            memorizedSet.contains("${surah.number}_$vNum")
+            activeMemorizedSet.contains("${surah.number}_$vNum")
         }
     }
 
@@ -381,15 +387,16 @@ fun QuranMemorizationScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 Spacer(modifier = Modifier.height(4.dp))
+                val activeMemorizedSet = if (activeView == HifzView.RECALL) recallMemorizedSet else practiceMemorizedSet
                 // Mark Memorized Ayahs Bar
                 MarkMemorizedAyahsBar(
                     startAyah = startAyah,
                     endAyah = endAyah,
                     surahNumber = surah.number,
-                    memorizedSet = memorizedSet,
+                    memorizedSet = activeMemorizedSet,
                     themeColors = themeColors,
                     onToggleMemorized = { ayahNum ->
-                        viewModel.toggleVerseMemorizedStatus(surah.number, ayahNum)
+                        viewModel.toggleVerseMemorizedStatus(surah.number, ayahNum, isRecallMode = (activeView == HifzView.RECALL))
                     },
                     lazyListState = headerChipsScrollState
                 )
@@ -405,11 +412,12 @@ fun QuranMemorizationScreen(
                         surah = surah,
                         startAyah = startAyah,
                         endAyah = endAyah,
-                        memorizedSet = memorizedSet,
+                        memorizedSet = recallMemorizedSet,
                         silhouetteOpacity = silhouetteOpacity,
                         isPlaying = isPlaying || hifzAudioState.isPlaying,
                         currentPlayingVerse = currentPlayingVerse,
                         showTranslation = showTranslation,
+                        isTajweedEnabled = isTajweedEnabled,
                         arabicFontSize = arabicFontSize,
                         arabicFont = arabicFont,
                         themeColors = themeColors,
@@ -420,9 +428,26 @@ fun QuranMemorizationScreen(
                             viewModel.playVerseInMemorizationMode(surah, verse.verseNumber, isRecallMode = true)
                         },
                         onToggleMemorized = { verse ->
-                            viewModel.toggleVerseMemorizedStatus(surah.number, verse.verseNumber)
+                            viewModel.toggleVerseMemorizedStatus(surah.number, verse.verseNumber, isRecallMode = true)
                         },
-                        onMarkAllMemorized = { viewModel.markCurrentRangeMemorized(true) }
+                        onMarkAllMemorized = { viewModel.markCurrentRangeMemorized(true, isRecallMode = true) },
+                        onRecordRecallResult = { gotIt, struggled, missed, hints ->
+                            val total = (endAyah - startAyah + 1).coerceAtLeast(1)
+                            viewModel.recordHifzSession(
+                                surahNumber = surah.number,
+                                surahName = surah.nameEnglish,
+                                surahNameArabic = surah.nameArabic,
+                                startAyah = startAyah,
+                                endAyah = endAyah,
+                                mode = "Self-Recall",
+                                totalAyahs = total,
+                                ayahsMemorized = gotIt,
+                                ayahsMissed = missed,
+                                ayahsStruggled = struggled,
+                                hintsUsed = hints,
+                                notes = "Recall test completed: $gotIt Got it, $struggled Struggled, $missed Missed"
+                            )
+                        }
                     )
                 } else {
                     UnifiedPracticeAndRecallContent(
@@ -432,11 +457,12 @@ fun QuranMemorizationScreen(
                         startAyah = startAyah,
                         endAyah = endAyah,
                         revealedVerses = revealedVerses,
-                        memorizedSet = memorizedSet,
+                        memorizedSet = practiceMemorizedSet,
                         silhouetteOpacity = silhouetteOpacity,
                         isPlaying = isPlaying || hifzAudioState.isPlaying,
                         currentPlayingVerse = currentPlayingVerse,
                         showTranslation = showTranslation,
+                        isTajweedEnabled = isTajweedEnabled,
                         arabicFontSize = arabicFontSize,
                         arabicFont = arabicFont,
                         themeColors = themeColors,
@@ -447,7 +473,7 @@ fun QuranMemorizationScreen(
                             viewModel.playVerseInMemorizationMode(surah, verse.verseNumber, isRecallMode = false)
                         },
                         onToggleMemorized = { verse ->
-                            viewModel.toggleVerseMemorizedStatus(surah.number, verse.verseNumber)
+                            viewModel.toggleVerseMemorizedStatus(surah.number, verse.verseNumber, isRecallMode = false)
                         },
                         onVerseTap = { verse ->
                             viewModel.playVerseInMemorizationMode(surah, verse.verseNumber, isRecallMode = false)
@@ -458,7 +484,7 @@ fun QuranMemorizationScreen(
                         onResetRevealed = {
                             viewModel.resetRevealedVersesInSession()
                         },
-                        onMarkAllMemorized = { viewModel.markCurrentRangeMemorized(true) }
+                        onMarkAllMemorized = { viewModel.markCurrentRangeMemorized(true, isRecallMode = false) }
                     )
                 }
             }
@@ -493,8 +519,30 @@ fun QuranMemorizationScreen(
                 }
             }
         }
+
+        // Floating Tajweed Rules Button (shows when Tajweed is enabled, identical to Quran reader)
+        TajweedFloatingButton(
+            isVisible = isTajweedEnabled,
+            position = tajweedButtonPosition,
+            themeColors = themeColors,
+            onClick = { showTajweedQuickReminder = true },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
+
+    if (showTajweedQuickReminder) {
+        TajweedQuickReminderMenu(
+            themeColors = themeColors,
+            buttonPosition = tajweedButtonPosition,
+            onPositionChange = { newPos -> viewModel.setTajweedButtonPosition(newPos) },
+            onOpenDeepGuide = {
+                showTajweedQuickReminder = false
+                viewModel.navigateTo(NoorDestination.QURAN_TAJWEED_GUIDE)
+            },
+            onDismiss = { showTajweedQuickReminder = false }
+        )
+    }
 
     if (showHifzSettingsSheet) {
         HifzSettingsSheet(
@@ -504,6 +552,7 @@ fun QuranMemorizationScreen(
             loopRange = loopRange,
             audioSyncReveal = audioSyncReveal,
             showTranslation = showTranslation,
+            isTajweedEnabled = isTajweedEnabled,
             arabicFontSize = arabicFontSize,
             selectedArabicFont = arabicFont,
             themeColors = themeColors,
@@ -523,6 +572,11 @@ fun QuranMemorizationScreen(
             onToggleLoopRange = { viewModel.toggleMemorizationLoopRange() },
             onToggleAudioSyncReveal = { viewModel.toggleMemorizationAudioSyncReveal() },
             onToggleShowTranslation = { viewModel.toggleMemorizationShowTranslation() },
+            onToggleTajweed = { viewModel.toggleTajweedMode(it) },
+            onOpenTajweedGuide = {
+                showHifzSettingsSheet = false
+                viewModel.navigateTo(NoorDestination.QURAN_TAJWEED_GUIDE)
+            },
             onSetFontSize = { viewModel.setArabicFontSize(it) },
             onSetArabicFont = { viewModel.setSelectedArabicFont(it) },
             onDismiss = { showHifzSettingsSheet = false }
@@ -1005,6 +1059,7 @@ private fun UnifiedPracticeAndRecallContent(
     isPlaying: Boolean,
     currentPlayingVerse: Int,
     showTranslation: Boolean,
+    isTajweedEnabled: Boolean,
     arabicFontSize: Int,
     arabicFont: QuranArabicFont,
     themeColors: com.example.ui.theme.ReadingThemeColors,
@@ -1024,8 +1079,8 @@ private fun UnifiedPracticeAndRecallContent(
     var textTopInParent by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
-    val rangeCache = remember(surah.number, startAyah, endAyah, themeColors) {
-        MushafTextCache.getOrCreateRange(surah, startAyah, endAyah, isTajweedEnabled = true, themeColors = themeColors)
+    val rangeCache = remember(surah.number, startAyah, endAyah, isTajweedEnabled, themeColors) {
+        MushafTextCache.getOrCreateRange(surah, startAyah, endAyah, isTajweedEnabled = isTajweedEnabled, themeColors = themeColors)
     }
     val verseRanges = rangeCache.verseRanges
 
@@ -1409,6 +1464,7 @@ private fun RecallSelfTestContent(
     isPlaying: Boolean,
     currentPlayingVerse: Int,
     showTranslation: Boolean,
+    isTajweedEnabled: Boolean,
     arabicFontSize: Int,
     arabicFont: QuranArabicFont,
     themeColors: com.example.ui.theme.ReadingThemeColors,
@@ -1417,7 +1473,8 @@ private fun RecallSelfTestContent(
     onToggleBars: () -> Unit,
     onPlayVerse: (Verse) -> Unit,
     onToggleMemorized: (Verse) -> Unit,
-    onMarkAllMemorized: () -> Unit
+    onMarkAllMemorized: () -> Unit,
+    onRecordRecallResult: (gotIt: Int, struggled: Int, missed: Int, hints: Int) -> Unit = { _, _, _, _ -> }
 ) {
     val isDark = themeColors.isDark
     val goldColor = if (isDark) Color(0xFFC9A227) else Color(0xFFC28100)
@@ -1442,6 +1499,19 @@ private fun RecallSelfTestContent(
 
     val totalGroupsCount = groups.size
     val allTested = totalGroupsCount > 0 && currentGroupIndex >= totalGroupsCount
+
+    var sessionRecorded by remember(activePool, currentGroupIndex) { mutableStateOf(false) }
+
+    LaunchedEffect(allTested) {
+        if (allTested && !sessionRecorded) {
+            sessionRecorded = true
+            val gotItCount = activePool.count { verdicts[it.verseNumber] == "Got it" }
+            val struggledCount = activePool.count { verdicts[it.verseNumber] == "Struggled" }
+            val missedCount = activePool.count { verdicts[it.verseNumber] == "Missed it" }
+            val totalHints = hintCounts.values.sum()
+            onRecordRecallResult(gotItCount, struggledCount, missedCount, totalHints)
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -1651,14 +1721,19 @@ private fun RecallSelfTestContent(
             val hintCountKey = remember(group) { group.first().verseNumber }
             val hintCount = hintCounts[hintCountKey] ?: 0
 
-            val annotatedArabic = remember(group, cleanArabicList, combinedCleanArabic, hintCount, silhouetteOpacity, themeColors, isCurrentRevealed) {
+            val annotatedArabic = remember(group, cleanArabicList, combinedCleanArabic, hintCount, silhouetteOpacity, themeColors, isCurrentRevealed, isTajweedEnabled) {
                 val builder = AnnotatedString.Builder()
                 if (isCurrentRevealed) {
                     group.forEachIndexed { idx, verse ->
                         val cleanText = NoorRepository.sanitizeArabicVerseText(surah.number, verse.verseNumber, verse.arabicText.trim())
-                        val start = builder.length
-                        builder.append(cleanText)
-                        builder.addStyle(SpanStyle(color = themeColors.arabicText, fontWeight = FontWeight.Normal), start, builder.length)
+                        if (isTajweedEnabled) {
+                            val tajweedPart = TajweedEngine.formatTajweedText(cleanText, isEnabled = true, themeColors = themeColors)
+                            builder.append(tajweedPart)
+                        } else {
+                            val start = builder.length
+                            builder.append(cleanText)
+                            builder.addStyle(SpanStyle(color = themeColors.arabicText, fontWeight = FontWeight.Normal), start, builder.length)
+                        }
                         
                         builder.append(" ")
                         val markerStart = builder.length
@@ -2150,6 +2225,7 @@ private fun HifzSettingsTab(
     loopRange: Boolean,
     audioSyncReveal: Boolean,
     showTranslation: Boolean,
+    isTajweedEnabled: Boolean,
     arabicFontSize: Int,
     selectedArabicFont: QuranArabicFont,
     themeColors: com.example.ui.theme.ReadingThemeColors,
@@ -2169,6 +2245,8 @@ private fun HifzSettingsTab(
     onToggleLoopRange: () -> Unit,
     onToggleAudioSyncReveal: () -> Unit,
     onToggleShowTranslation: () -> Unit,
+    onToggleTajweed: (Boolean) -> Unit,
+    onOpenTajweedGuide: () -> Unit,
     onSetFontSize: (Int) -> Unit,
     onSetArabicFont: (QuranArabicFont) -> Unit
 ) {
@@ -2177,6 +2255,89 @@ private fun HifzSettingsTab(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = themeColors.surface),
+                border = null,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Tajweed Rules (أَحْكَام التَّجْوِيد)",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = themeColors.arabicText
+                                )
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                "Color-codes Ghunna, Ikhfa, Qalqalah, Madd, and Idgham rules with floating helper",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = themeColors.translationText,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
+                            )
+                        }
+
+                        Switch(
+                            checked = isTajweedEnabled,
+                            onCheckedChange = { onToggleTajweed(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF1BA486),
+                                uncheckedThumbColor = themeColors.translationText,
+                                uncheckedTrackColor = themeColors.border
+                            )
+                        )
+                    }
+
+                    if (isTajweedEnabled) {
+                        Button(
+                            onClick = onOpenTajweedGuide,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = themeColors.accent.copy(alpha = 0.12f),
+                                contentColor = themeColors.accent
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            elevation = null,
+                            border = null
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Open Tajweed Rules Guide",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         item {
             CustomPatternSelectorCard(
                 title = "Ayah Repetition Pattern",
@@ -2560,6 +2721,7 @@ private fun HifzSettingsSheet(
     loopRange: Boolean,
     audioSyncReveal: Boolean,
     showTranslation: Boolean,
+    isTajweedEnabled: Boolean,
     arabicFontSize: Int,
     selectedArabicFont: QuranArabicFont,
     themeColors: com.example.ui.theme.ReadingThemeColors,
@@ -2579,6 +2741,8 @@ private fun HifzSettingsSheet(
     onToggleLoopRange: () -> Unit,
     onToggleAudioSyncReveal: () -> Unit,
     onToggleShowTranslation: () -> Unit,
+    onToggleTajweed: (Boolean) -> Unit,
+    onOpenTajweedGuide: () -> Unit,
     onSetFontSize: (Int) -> Unit,
     onSetArabicFont: (QuranArabicFont) -> Unit,
     onDismiss: () -> Unit
@@ -2596,6 +2760,7 @@ private fun HifzSettingsSheet(
                 HifzSettingsTab(
                     silhouetteOpacity = silhouetteOpacity, repeatCount = repeatCount, delaySeconds = delaySeconds,
                     loopRange = loopRange, audioSyncReveal = audioSyncReveal, showTranslation = showTranslation,
+                    isTajweedEnabled = isTajweedEnabled,
                     arabicFontSize = arabicFontSize, selectedArabicFont = selectedArabicFont, themeColors = themeColors,
                     ayahPattern = ayahPattern, isCustomPatternEnabled = isCustomPatternEnabled, wordRepeatCount = wordRepeatCount,
                     chunkReviewSize = chunkReviewSize, recallGroupSize = recallGroupSize,
@@ -2604,7 +2769,10 @@ private fun HifzSettingsSheet(
                     onSetSilhouetteOpacity = onSetSilhouetteOpacity,
                     onSelectRepeatCount = onSelectRepeatCount, onSelectDelaySeconds = onSelectDelaySeconds,
                     onToggleLoopRange = onToggleLoopRange, onToggleAudioSyncReveal = onToggleAudioSyncReveal,
-                    onToggleShowTranslation = onToggleShowTranslation, onSetFontSize = onSetFontSize,
+                    onToggleShowTranslation = onToggleShowTranslation,
+                    onToggleTajweed = onToggleTajweed,
+                    onOpenTajweedGuide = onOpenTajweedGuide,
+                    onSetFontSize = onSetFontSize,
                     onSetArabicFont = onSetArabicFont
                 )
             }

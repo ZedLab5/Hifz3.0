@@ -1,5 +1,11 @@
 package com.example.ui.notifications
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -35,6 +41,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -47,7 +54,12 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.WbTwilight
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.material3.Button
@@ -77,6 +89,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -147,6 +160,37 @@ fun NotificationCenterScreen(
 
     val remindersMap by viewModel.spiritualRemindersState.collectAsStateWithLifecycle()
     val activeCount by viewModel.activeSpiritualRemindersCount.collectAsStateWithLifecycle()
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var lifecycleResumeKey by remember { mutableStateOf(0) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                lifecycleResumeKey++
+                viewModel.updateNotificationPermissionStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val hasNotificationPermissionSys = remember(context, lifecycleResumeKey) {
+        NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
+    val hasNotificationPermissionState by viewModel.hasNotificationPermission.collectAsStateWithLifecycle()
+    val hasNotificationPermission = hasNotificationPermissionSys || hasNotificationPermissionState
+    val isLocationConfigured by viewModel.isLocationConfigured.collectAsStateWithLifecycle()
+    val hasFullControlAccess = hasNotificationPermission && isLocationConfigured
+
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        viewModel.updateNotificationPermissionStatus(isGranted)
+        lifecycleResumeKey++
+    }
 
     var selectedCategoryFilter by remember { mutableStateOf<SpiritualReminderCategory?>(null) }
 
@@ -248,95 +292,83 @@ fun NotificationCenterScreen(
         ) {
             // Master Banner Card (Clean white surface card, calm and unified)
             item(key = "master_banner") {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = cardBg,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                if (!hasNotificationPermission) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = cardBg,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(tealTintBg),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.NotificationsActive,
-                                    contentDescription = null,
-                                    tint = primaryTeal,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(tealTintBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.NotificationsOff,
+                                        contentDescription = null,
+                                        tint = primaryTeal,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (isArabic) "تحكم كامل في التذكيرات" else "Full Notification Control",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = textPrimary,
-                                        fontSize = 16.sp
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isArabic) "الإشعارات متوقفة حالياً" else "Notifications are Disabled",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = textPrimary,
+                                            fontSize = 16.sp
+                                        )
                                     )
-                                )
-                                Text(
-                                    text = if (isArabic)
-                                        "خصص وقت كل عبادة، وفعّل ما يناسب جدولك اليومي بدون أي استهلاك زائد للبطارية."
-                                    else
-                                        "Tailor every spiritual alert to your schedule. Runs with 0% idle background CPU.",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = textSecondary,
-                                        fontSize = 12.5.sp
+                                    Text(
+                                        text = if (isArabic)
+                                            "فعّل الإشعارات لتصلك تنبيهات الأذكار وتذكيرات الصلاة وقراءة القرآن في موعدها."
+                                        else
+                                            "Enable notifications on your device to receive timely spiritual alerts and prayer reminders.",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = textSecondary,
+                                            fontSize = 12.5.sp,
+                                            lineHeight = 17.sp
+                                        )
                                     )
-                                )
-                            }
-                        }
-
-                        // Master Action Buttons (Rounded Pills)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Button(
-                                onClick = { viewModel.muteAllSpiritualReminders() },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("btn_mute_all_reminders"),
-                                shape = RoundedCornerShape(50),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = softNavyPillBg,
-                                    contentColor = softNavyText
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.NotificationsOff,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = softNavyText
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (isArabic) "كتم الكل" else "Mute All",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = softNavyText
-                                    )
-                                )
+                                }
                             }
 
                             Button(
-                                onClick = { viewModel.restoreRecommendedSpiritualReminders() },
+                                onClick = {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                    try {
+                                        val intent = Intent().apply {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                                action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                            } else {
+                                                action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                                                data = Uri.fromParts("package", context.packageName, null)
+                                            }
+                                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                },
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("btn_restore_recommended_reminders"),
+                                    .fillMaxWidth()
+                                    .testTag("btn_enable_notifications_master"),
                                 shape = RoundedCornerShape(50),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = primaryTeal,
@@ -344,16 +376,130 @@ fun NotificationCenterScreen(
                                 )
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.RestartAlt,
+                                    imageVector = Icons.Default.NotificationsActive,
                                     contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(18.dp),
                                     tint = Color.White
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (isArabic) "الموصى به" else "Recommended",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    text = if (isArabic) "تفعيل الإشعارات" else "Enable Notifications",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
                                 )
+                            }
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = cardBg,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(tealTintBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.NotificationsActive,
+                                        contentDescription = null,
+                                        tint = primaryTeal,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isArabic) "تحكم كامل في التذكيرات" else "Full Notification Control",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = textPrimary,
+                                            fontSize = 16.sp
+                                        )
+                                    )
+                                    Text(
+                                        text = if (isArabic)
+                                            "خصص وقت كل عبادة، وفعّل ما يناسب جدولك اليومي بدون أي استهلاك زائد للبطارية."
+                                        else
+                                            "Tailor every spiritual alert to your schedule. Runs with 0% idle background CPU.",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = textSecondary,
+                                            fontSize = 12.5.sp
+                                        )
+                                    )
+                                }
+                            }
+
+                            // Master Action Buttons (Rounded Pills)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Button(
+                                    onClick = { viewModel.muteAllSpiritualReminders() },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("btn_mute_all_reminders"),
+                                    shape = RoundedCornerShape(50),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = softNavyPillBg,
+                                        contentColor = softNavyText
+                                    ),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.NotificationsOff,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = softNavyText
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isArabic) "كتم الكل" else "Mute All",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = softNavyText
+                                        )
+                                    )
+                                }
+
+                                Button(
+                                    onClick = { viewModel.restoreRecommendedSpiritualReminders() },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("btn_restore_recommended_reminders"),
+                                    shape = RoundedCornerShape(50),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = primaryTeal,
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.RestartAlt,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isArabic) "الموصى به" else "Recommended",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    )
+                                }
                             }
                         }
                     }
@@ -382,7 +528,9 @@ fun NotificationCenterScreen(
                             else -> cardBorder
                         }
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(if (hasNotificationPermission) 1f else 0.5f)
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
@@ -588,31 +736,36 @@ fun NotificationCenterScreen(
                             else -> {
                                 Button(
                                     onClick = {
-                                        testSucceeded = null
-                                        testCountdown = 10
-                                        coroutineScope.launch {
-                                            while (testCountdown > 0) {
-                                                delay(1000)
-                                                testCountdown -= 1
+                                        if (hasNotificationPermission) {
+                                            testSucceeded = null
+                                            testCountdown = 10
+                                            coroutineScope.launch {
+                                                while (testCountdown > 0) {
+                                                    delay(1000)
+                                                    testCountdown -= 1
+                                                }
+                                                // Once countdown completes, trigger the notification and show prompt
+                                                com.example.data.local.NoorNotificationHelper.showUniversalTestNotification(context)
+                                                viewModel.triggerHaptic()
+                                                showFeedbackPrompt = true
                                             }
-                                            // Once countdown completes, trigger the notification and show prompt
-                                            com.example.data.local.NoorNotificationHelper.showUniversalTestNotification(context)
-                                            viewModel.triggerHaptic()
-                                            showFeedbackPrompt = true
                                         }
                                     },
+                                    enabled = hasNotificationPermission,
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(50),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = primaryTeal,
-                                        contentColor = Color.White
+                                        contentColor = Color.White,
+                                        disabledContainerColor = softNavyPillBg,
+                                        disabledContentColor = textSecondary
                                     )
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Timer,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp),
-                                        tint = Color.White
+                                        tint = if (hasNotificationPermission) Color.White else textSecondary
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
@@ -628,7 +781,12 @@ fun NotificationCenterScreen(
 
             // Category Filter Chips (Consistent styling across all chips)
             item(key = "filter_chips") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(if (hasNotificationPermission) 1f else 0.5f)
+                ) {
                     Text(
                         text = if (isArabic) "التصنيفات" else "Categories",
                         style = MaterialTheme.typography.titleSmall.copy(
@@ -643,7 +801,8 @@ fun NotificationCenterScreen(
                         item {
                             FilterChip(
                                 selected = selectedCategoryFilter == null,
-                                onClick = { selectedCategoryFilter = null },
+                                onClick = { if (hasNotificationPermission) selectedCategoryFilter = null },
+                                enabled = hasNotificationPermission,
                                 shape = RoundedCornerShape(50),
                                 label = {
                                     Text(
@@ -658,7 +817,7 @@ fun NotificationCenterScreen(
                                     labelColor = softNavyText
                                 ),
                                 border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
+                                    enabled = hasNotificationPermission,
                                     selected = selectedCategoryFilter == null,
                                     borderColor = cardBorder,
                                     selectedBorderColor = Color.Transparent
@@ -672,7 +831,8 @@ fun NotificationCenterScreen(
 
                             FilterChip(
                                 selected = isSelected,
-                                onClick = { selectedCategoryFilter = if (isSelected) null else cat },
+                                onClick = { if (hasNotificationPermission) selectedCategoryFilter = if (isSelected) null else cat },
+                                enabled = hasNotificationPermission,
                                 shape = RoundedCornerShape(50),
                                 label = {
                                     Text(
@@ -687,7 +847,7 @@ fun NotificationCenterScreen(
                                     labelColor = softNavyText
                                 ),
                                 border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
+                                    enabled = hasNotificationPermission,
                                     selected = isSelected,
                                     borderColor = cardBorder,
                                     selectedBorderColor = Color.Transparent
@@ -709,6 +869,7 @@ fun NotificationCenterScreen(
                 SpiritualReminderCard(
                     item = item,
                     state = state,
+                    isEnabled = hasNotificationPermission,
                     isArabic = isArabic,
                     isDarkMode = isDarkMode,
                     cardBg = cardBg,
@@ -739,6 +900,7 @@ fun NotificationCenterScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp, bottom = 24.dp)
+                        .alpha(if (hasNotificationPermission) 1f else 0.55f)
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -783,6 +945,7 @@ fun NotificationCenterScreen(
 private fun SpiritualReminderCard(
     item: SpiritualReminderItem,
     state: SpiritualReminderState,
+    isEnabled: Boolean = true,
     isArabic: Boolean,
     isDarkMode: Boolean,
     cardBg: Color,
@@ -800,7 +963,7 @@ private fun SpiritualReminderCard(
 ) {
     var showTimePickerDialog by remember { mutableStateOf(false) }
 
-    if (showTimePickerDialog) {
+    if (showTimePickerDialog && isEnabled) {
         ReminderTimePickerDialog(
             title = if (isArabic) item.titleAr else item.titleEn,
             initialHour = state.hour,
@@ -840,8 +1003,8 @@ private fun SpiritualReminderCard(
         }
     }
 
-    val iconBgColor = if (state.isEnabled) tealTintBg else softNavyPillBg
-    val iconTint = if (state.isEnabled) primaryTeal else textSecondary
+    val iconBgColor = if (state.isEnabled && isEnabled) tealTintBg else softNavyPillBg
+    val iconTint = if (state.isEnabled && isEnabled) primaryTeal else textSecondary
 
     val formattedTime = remember(state.hour, state.minute) {
         val cal = java.util.Calendar.getInstance().apply {
@@ -856,7 +1019,9 @@ private fun SpiritualReminderCard(
         shape = RoundedCornerShape(18.dp),
         color = cardBg,
         border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (isEnabled) 1f else 0.5f)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -893,7 +1058,7 @@ private fun SpiritualReminderCard(
                             text = if (isArabic) item.titleAr else item.titleEn,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = if (state.isEnabled) textPrimary else textSecondary,
+                                color = if (state.isEnabled && isEnabled) textPrimary else textSecondary,
                                 fontSize = 15.sp
                             ),
                             maxLines = 1,
@@ -914,6 +1079,7 @@ private fun SpiritualReminderCard(
                 Switch(
                     checked = state.isEnabled,
                     onCheckedChange = onToggle,
+                    enabled = isEnabled,
                     modifier = Modifier.testTag("switch_${item.id}"),
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
@@ -935,7 +1101,7 @@ private fun SpiritualReminderCard(
             )
 
             // Permanent Time Pill
-            val actionContentColor = if (state.isEnabled) softNavyText else textSecondary
+            val actionContentColor = if (state.isEnabled && isEnabled) softNavyText else textSecondary
 
             Surface(
                 shape = RoundedCornerShape(50),
@@ -943,7 +1109,7 @@ private fun SpiritualReminderCard(
                 border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .clickable { showTimePickerDialog = true }
+                    .clickable(enabled = isEnabled) { showTimePickerDialog = true }
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

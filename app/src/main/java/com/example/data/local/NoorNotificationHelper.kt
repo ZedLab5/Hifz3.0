@@ -152,21 +152,7 @@ object NoorNotificationHelper {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
-                // 2. "Snooze 5 min" Action Broadcast
-                val snoozeIntent = Intent(context, PrayerAlarmReceiver::class.java).apply {
-                    action = PrayerAlarmScheduler.ACTION_SNOOZE_ADHAN
-                    putExtra(PrayerAlarmScheduler.EXTRA_PRAYER_NAME, prayerName)
-                    putExtra(PrayerAlarmScheduler.EXTRA_TIME_FORMATTED, timeFormatted)
-                    putExtra(PrayerAlarmScheduler.EXTRA_NOTIFICATION_ID, notificationId)
-                }
-                val snoozePendingIntent = PendingIntent.getBroadcast(
-                    context,
-                    notificationId * 10 + 2,
-                    snoozeIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-
-                // 3. Delete Intent (swiping away the notification stops playback)
+                // 2. Delete Intent (swiping away the notification stops playback)
                 val deletePendingIntent = PendingIntent.getBroadcast(
                     context,
                     notificationId * 10 + 3,
@@ -179,11 +165,6 @@ object NoorNotificationHelper {
                         android.R.drawable.ic_media_pause,
                         "Stop",
                         stopPendingIntent
-                    )
-                    .addAction(
-                        android.R.drawable.ic_popup_reminder,
-                        "Snooze 5 min",
-                        snoozePendingIntent
                     )
             }
 

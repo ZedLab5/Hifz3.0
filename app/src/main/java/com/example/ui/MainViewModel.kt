@@ -239,13 +239,57 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val locationName = MutableStateFlow(
-        try {
-            application.getSharedPreferences("noor_user_prefs", Context.MODE_PRIVATE)
-                .getString("location_name", "Tangier, Morocco") ?: "Tangier, Morocco"
-        } catch (e: Exception) {
-            "Tangier, Morocco"
+        if (!sharedPrefs.getBoolean("is_location_configured", false)) {
+            "Location is Off"
+        } else {
+            try {
+                application.getSharedPreferences("noor_user_prefs", Context.MODE_PRIVATE)
+                    .getString("location_name", "Location is Off") ?: "Location is Off"
+            } catch (e: Exception) {
+                "Location is Off"
+            }
         }
     )
+
+    val isLocationConfigured = MutableStateFlow(
+        sharedPrefs.getBoolean("is_location_configured", false)
+    )
+
+    val hasNotificationPermission = MutableStateFlow(
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                application,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else {
+            androidx.core.app.NotificationManagerCompat.from(application).areNotificationsEnabled()
+        }
+    )
+
+    fun updateNotificationPermissionStatus(overrideGranted: Boolean? = null) {
+        val app = getApplication<Application>()
+        val granted = overrideGranted ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                app,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else {
+            androidx.core.app.NotificationManagerCompat.from(app).areNotificationsEnabled()
+        }
+        hasNotificationPermission.value = granted
+    }
+
+    fun markLocationConfigured() {
+        isLocationConfigured.value = true
+        sharedPrefs.edit().putBoolean("is_location_configured", true).apply()
+        val zone = selectedPrayerZone.value
+        locationName.value = "${zone.name}, ${zone.country}"
+        refreshPrayerTimes()
+    }
+
+    fun openSalatSettings() {
+        isSalatSettingsOpen.value = true
+    }
 
     val isCloudSyncEnabled = MutableStateFlow(
         try {
@@ -711,8 +755,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectPrayerZone(zone: PrayerZone) {
         selectedPrayerZone.value = zone
+        isLocationConfigured.value = true
         locationName.value = "${zone.name}, ${zone.country}"
-        sharedPrefs.edit().putString("selected_prayer_zone_id", zone.id).apply()
+        sharedPrefs.edit()
+            .putString("selected_prayer_zone_id", zone.id)
+            .putBoolean("is_location_configured", true)
+            .apply()
         viewModelScope.launch {
             val savedCompleted = repository.getCompletedPrayersForFajrDay(zone)
             _completedPrayers.value = savedCompleted
@@ -1209,7 +1257,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val isShortcutsSheetOpen = MutableStateFlow(false)
     val isHomeTutorialRequested = MutableStateFlow(false)
     val hasSeenHomeTutorial = MutableStateFlow(sharedPrefs.getBoolean("has_seen_home_tutorial", false))
-    val hasSeenOnboarding = MutableStateFlow(sharedPrefs.getBoolean("has_seen_onboarding", false))
+    val hasSeenOnboarding = MutableStateFlow(sharedPrefs.getBoolean("has_seen_onboarding_v4_complete", false))
     val isTutorialActive = MutableStateFlow(false)
 
     // Quran Reader State
@@ -1249,10 +1297,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val memorizationAudioSyncReveal = MutableStateFlow(sharedPrefs.getBoolean("hifz_audio_sync_reveal", true))
     val memorizationShowTranslation = MutableStateFlow(sharedPrefs.getBoolean("hifz_show_translation", false))
     val memorizationTestRecallMode = MutableStateFlow(false)
-    val memorizedAyahsSet = MutableStateFlow<Set<String>>(sharedPrefs.getStringSet("hifz_memorized_ayahs_set", emptySet()) ?: emptySet())
+    val memorizedPracticeSet = MutableStateFlow<Set<String>>(
+        sharedPrefs.getStringSet("hifz_memorized_practice_set", null)
+            ?: sharedPrefs.getStringSet("hifz_memorized_ayahs_set", emptySet())
+            ?: emptySet()
+    )
+    val memorizedRecallSet = MutableStateFlow<Set<String>>(
+        sharedPrefs.getStringSet("hifz_memorized_recall_set", emptySet()) ?: emptySet()
+    )
+    val memorizedAyahsSet = memorizedPracticeSet
     val memorizationDelayActive = MutableStateFlow(false)
     val memorizationDelayCountdown = MutableStateFlow(0)
-    val memorizationStudioTab = MutableStateFlow(0) // 0: Practice Drill, 1: Range Selector, 2: Self-Test Recall, 3: History
+    val memorizationStudioTab = MutableStateFlow(0) // 0: Practice Drill, 1: Range Selector, 2: Self-Test Recall, 3: Stats
 
     val hifzSessionLogs = MutableStateFlow<List<com.example.data.quran.HifzSessionLog>>(
         try {
@@ -1272,8 +1328,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         totalAyahs: Int,
         ayahsMemorized: Int,
         ayahsMissed: Int,
+        ayahsStruggled: Int = 0,
         hintsUsed: Int = 0,
         durationSeconds: Int = 180,
+        repetitionsCompleted: Int = 1,
         notes: String = ""
     ) {
         val log = com.example.data.quran.HifzSessionLog(
@@ -1286,8 +1344,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             totalAyahs = totalAyahs,
             ayahsMemorized = ayahsMemorized,
             ayahsMissed = ayahsMissed,
+            ayahsStruggled = ayahsStruggled,
             hintsUsed = hintsUsed,
             durationSeconds = durationSeconds,
+            repetitionsCompleted = repetitionsCompleted,
             notes = notes
         )
         try {
@@ -1522,7 +1582,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         NoorNotificationHelper.createNotificationChannels(application)
         SpiritualAlarmScheduler.rescheduleAll(application)
         hasSeenHomeTutorial.value = sharedPrefs.getBoolean("has_seen_home_tutorial", false)
-        hasSeenOnboarding.value = sharedPrefs.getBoolean("has_seen_onboarding", false)
+        hasSeenOnboarding.value = sharedPrefs.getBoolean("has_seen_onboarding_v4_complete", false)
         showArabicInAzkarCards.value = sharedPrefs.getBoolean("show_arabic_in_azkar_cards", true)
         azkarTextSize.value = sharedPrefs.getString("azkar_text_size", "Small") ?: "Small"
         isAzkarAutoScrollEnabled.value = sharedPrefs.getBoolean("azkar_auto_scroll", true)
@@ -1532,13 +1592,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val savedFontId = sharedPrefs.getString("quran_arabic_font", QuranArabicFont.AMIRI.id)
         selectedArabicFont.value = QuranArabicFont.fromId(savedFontId)
 
+        val isLocConfigured = sharedPrefs.getBoolean("is_location_configured", false)
+        isLocationConfigured.value = isLocConfigured
         val savedZoneId = sharedPrefs.getString("selected_prayer_zone_id", null)
-        if (savedZoneId != null) {
+        if (isLocConfigured && savedZoneId != null) {
             val foundZone = repository.prayerZones.find { it.id == savedZoneId }
             if (foundZone != null) {
                 selectedPrayerZone.value = foundZone
                 locationName.value = "${foundZone.name}, ${foundZone.country}"
             }
+        } else if (!isLocConfigured) {
+            val isAr = appLanguage.value.equals("Arabic", ignoreCase = true) ||
+                    appLanguage.value == "العربية" ||
+                    appLanguage.value.startsWith("ar", ignoreCase = true)
+            locationName.value = if (isAr) "الموقع غير مفعّل" else "Location is Off"
         }
         val savedAuthId = sharedPrefs.getString("selected_calc_authority_id", null)
         if (savedAuthId != null) {
@@ -1652,6 +1719,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshPrayerTimes() {
+        if (!isLocationConfigured.value) {
+            val dummyPrayers = listOf(
+                Pair("Fajr", "الفجر"),
+                Pair("Sunrise", "الشروق"),
+                Pair("Dhuhr", "الظهر"),
+                Pair("Asr", "العصر"),
+                Pair("Maghrib", "المغرب"),
+                Pair("Isha", "العشاء")
+            ).mapIndexed { idx, pair ->
+                PrayerTime(
+                    name = pair.first,
+                    arabicName = pair.second,
+                    timeString = "--:--",
+                    hour = 0,
+                    minute = 0,
+                    isNext = idx == 0,
+                    isPast = false,
+                    isCurrent = false,
+                    isCompleted = false
+                )
+            }
+            _prayerTimes.value = dummyPrayers
+            _nextPrayerName.value = "Salat"
+            _nextPrayerTimeStr.value = "--:--"
+            _nextPrayerCountdown.value = "--:--"
+            supplementaryPrayerTimes.value = null
+            val isAr = appLanguage.value.equals("Arabic", ignoreCase = true) ||
+                    appLanguage.value == "العربية" ||
+                    appLanguage.value.startsWith("ar", ignoreCase = true)
+            locationName.value = if (isAr) "الموقع غير مفعّل" else "Location is Off"
+            com.example.widget.PrayerWidgetUpdater.updateAsync(getApplication())
+            return
+        }
+
         val list = repository.calculatePrayerTimes(
             zone = selectedPrayerZone.value,
             authority = selectedAuthority.value,
@@ -1687,6 +1788,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             var lastMinute = -1
 
             while (true) {
+                if (!isLocationConfigured.value) {
+                    _nextPrayerCountdown.value = "--:--"
+                    _nextPrayerTimeStr.value = "--:--"
+                    delay(1000)
+                    continue
+                }
+
                 val tz = java.util.TimeZone.getTimeZone(selectedPrayerZone.value.timeZoneId)
                 val now = Calendar.getInstance(tz)
                 val currentHour = now.get(Calendar.HOUR_OF_DAY)
@@ -3109,9 +3217,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         triggerHaptic()
     }
 
-    fun toggleVerseMemorizedStatus(surahNumber: Int, verseNumber: Int) {
+    fun toggleVerseMemorizedStatus(surahNumber: Int, verseNumber: Int, isRecallMode: Boolean = false) {
         val key = "${surahNumber}_${verseNumber}"
-        val currentSet = memorizedAyahsSet.value.toMutableSet()
+        val targetFlow = if (isRecallMode) memorizedRecallSet else memorizedPracticeSet
+        val prefKey = if (isRecallMode) "hifz_memorized_recall_set" else "hifz_memorized_practice_set"
+        val currentSet = targetFlow.value.toMutableSet()
         val isNowMemorized = if (currentSet.contains(key)) {
             currentSet.remove(key)
             false
@@ -3119,9 +3229,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             currentSet.add(key)
             true
         }
-        memorizedAyahsSet.value = currentSet
-        sharedPrefs.edit().putStringSet("hifz_memorized_ayahs_set", currentSet).apply()
+        targetFlow.value = currentSet
+        sharedPrefs.edit().putStringSet(prefKey, currentSet).apply()
 
+        val modeTag = if (isRecallMode) "RECALL" else "PRACTICE"
         viewModelScope.launch {
             try {
                 db.noorDao().insertHifzEvent(
@@ -3129,7 +3240,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         surahNumber = surahNumber,
                         ayahNumber = verseNumber,
                         type = if (isNowMemorized) "MARKED" else "UNMARKED",
-                        mode = "MEMORIZED",
+                        mode = modeTag,
                         timestampUtcMs = System.currentTimeMillis()
                     )
                 )
@@ -3139,20 +3250,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         triggerHaptic()
-        showToast(if (isNowMemorized) "Ayah $verseNumber marked as Memorized ✓" else "Ayah $verseNumber marked as In-Progress")
+        val modeLabel = if (isRecallMode) "Recall" else "Practice"
+        showToast(if (isNowMemorized) "Ayah $verseNumber marked in $modeLabel ✓" else "Ayah $verseNumber unmarked in $modeLabel")
     }
 
-    fun isVerseMemorized(surahNumber: Int, verseNumber: Int): Boolean {
-        return memorizedAyahsSet.value.contains("${surahNumber}_${verseNumber}")
+    fun isVerseMemorized(surahNumber: Int, verseNumber: Int, isRecallMode: Boolean = false): Boolean {
+        val targetFlow = if (isRecallMode) memorizedRecallSet else memorizedPracticeSet
+        return targetFlow.value.contains("${surahNumber}_${verseNumber}")
     }
 
-    fun markCurrentRangeMemorized(markAsMemorized: Boolean) {
+    fun markCurrentRangeMemorized(markAsMemorized: Boolean, isRecallMode: Boolean = false) {
         val surahNum = memorizationSurah.value.number
         val start = memorizationStartAyah.value
         val end = memorizationEndAyah.value
-        val currentSet = memorizedAyahsSet.value.toMutableSet()
+        val targetFlow = if (isRecallMode) memorizedRecallSet else memorizedPracticeSet
+        val prefKey = if (isRecallMode) "hifz_memorized_recall_set" else "hifz_memorized_practice_set"
+        val currentSet = targetFlow.value.toMutableSet()
         val newEvents = mutableListOf<com.example.data.local.HifzEventEntity>()
         val now = System.currentTimeMillis()
+        val modeTag = if (isRecallMode) "RECALL" else "PRACTICE"
 
         for (v in start..end) {
             val key = "${surahNum}_${v}"
@@ -3166,13 +3282,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     surahNumber = surahNum,
                     ayahNumber = v,
                     type = if (markAsMemorized) "MARKED" else "UNMARKED",
-                    mode = "MEMORIZED",
+                    mode = modeTag,
                     timestampUtcMs = now
                 )
             )
         }
-        memorizedAyahsSet.value = currentSet
-        sharedPrefs.edit().putStringSet("hifz_memorized_ayahs_set", currentSet).apply()
+        targetFlow.value = currentSet
+        sharedPrefs.edit().putStringSet(prefKey, currentSet).apply()
 
         viewModelScope.launch {
             try {
@@ -3182,8 +3298,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        if (markAsMemorized) {
+            val total = end - start + 1
+            recordHifzSession(
+                surahNumber = surahNum,
+                surahName = memorizationSurah.value.nameEnglish,
+                surahNameArabic = memorizationSurah.value.nameArabic,
+                startAyah = start,
+                endAyah = end,
+                mode = if (isRecallMode) "Self-Recall" else "Practice",
+                totalAyahs = total,
+                ayahsMemorized = total,
+                ayahsMissed = 0,
+                notes = "Range marked as memorized"
+            )
+        }
+
         triggerHaptic()
-        showToast(if (markAsMemorized) "Ayahs $start–$end marked as Memorized ✓" else "Ayahs $start–$end unmarked")
+        val modeLabel = if (isRecallMode) "Recall" else "Practice"
+        showToast(if (markAsMemorized) "Ayahs $start–$end marked in $modeLabel ✓" else "Ayahs $start–$end unmarked in $modeLabel")
     }
 
     private var wordPatternJob: Job? = null
@@ -3399,6 +3532,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .putString(key, rating)
             .putLong(timeKey, System.currentTimeMillis())
             .apply()
+
+        val total = (prompt.endAyah - prompt.startAyah + 1).coerceAtLeast(1)
+        val isMastered = rating == "GOT_IT"
+        val memorized = if (isMastered) total else (total - 1).coerceAtLeast(0)
+        val missed = if (isMastered) 0 else 1
+        recordHifzSession(
+            surahNumber = prompt.surahNumber,
+            surahName = prompt.surahName,
+            startAyah = prompt.startAyah,
+            endAyah = prompt.endAyah,
+            mode = if (prompt.mode.contains("RECALL", ignoreCase = true) || prompt.mode.contains("Self", ignoreCase = true)) "Self-Recall" else "Practice",
+            totalAyahs = total,
+            ayahsMemorized = memorized,
+            ayahsMissed = missed,
+            notes = if (isMastered) "Chunk mastered" else "Needs revision"
+        )
+
         prompt.onChoice(rating)
         activeConfidencePrompt.value = null
         triggerHaptic()
@@ -3855,6 +4005,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 saveLastDrilledChunk(surah.number, startAyah, endAyah, startAyah, endAyah, "WORD")
+                val totalAyahs = (endAyah - startAyah + 1).coerceAtLeast(1)
+                recordHifzSession(
+                    surahNumber = surah.number,
+                    surahName = surah.nameEnglish,
+                    surahNameArabic = surah.nameArabic,
+                    startAyah = startAyah,
+                    endAyah = endAyah,
+                    mode = "Practice Drill",
+                    totalAyahs = totalAyahs,
+                    ayahsMemorized = totalAyahs,
+                    ayahsMissed = 0,
+                    repetitionsCompleted = memorizationWordRepeatCount.value,
+                    notes = "Word pattern drill completed"
+                )
                 drillProgressState.value = HifzDrillProgressInfo()
                 triggerHaptic()
                 showToast("Masha'Allah! Session recap completed for Ayahs $startAyah–$endAyah")
@@ -4068,6 +4232,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     saveLastDrilledChunk(surah.number, startRange, endRange, startRange, endRange, "AYAH")
+                    val totalAyahs = (endRange - startRange + 1).coerceAtLeast(1)
+                    recordHifzSession(
+                        surahNumber = surah.number,
+                        surahName = surah.nameEnglish,
+                        surahNameArabic = surah.nameArabic,
+                        startAyah = startRange,
+                        endAyah = endRange,
+                        mode = "Practice Drill",
+                        totalAyahs = totalAyahs,
+                        ayahsMemorized = totalAyahs,
+                        ayahsMissed = 0,
+                        repetitionsCompleted = memorizationRepeatCount.value,
+                        notes = "Ayah pattern drill completed"
+                    )
                     if (!memorizationLoopRange.value) {
                         val batchSize = (endRange - startRange + 1).coerceAtLeast(1)
                         if (endRange < surah.totalVerses) {
@@ -4277,14 +4455,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun completeOnboarding(focusSelections: Set<String>) {
-        sharedPrefs.edit().putBoolean("has_seen_onboarding", true).apply()
-        sharedPrefs.edit().putStringSet("onboarding_focus_selections", focusSelections).apply()
+        sharedPrefs.edit()
+            .putBoolean("has_seen_onboarding", true)
+            .putBoolean("has_seen_onboarding_v4_complete", true)
+            .putStringSet("onboarding_focus_selections", focusSelections)
+            .apply()
         hasSeenOnboarding.value = true
     }
 
     fun skipOnboarding() {
-        sharedPrefs.edit().putBoolean("has_seen_onboarding", true).apply()
+        sharedPrefs.edit()
+            .putBoolean("has_seen_onboarding", true)
+            .putBoolean("has_seen_onboarding_v4_complete", true)
+            .apply()
         hasSeenOnboarding.value = true
+    }
+
+    fun resetOnboarding() {
+        sharedPrefs.edit()
+            .putBoolean("has_seen_onboarding", false)
+            .putBoolean("has_seen_onboarding_v4_complete", false)
+            .putBoolean("has_seen_home_tutorial", false)
+            .apply()
+        hasSeenOnboarding.value = false
+        hasSeenHomeTutorial.value = false
     }
 
     fun toggleQuickAccessTool(tool: QuickAccessTool) {

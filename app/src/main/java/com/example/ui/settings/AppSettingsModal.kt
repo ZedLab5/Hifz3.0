@@ -1154,13 +1154,30 @@ fun AppSettingsScreen(
                 }
 
                 // ==========================================
-                // SECTION 6: APP TUTORIAL (REPLAY)
+                // SECTION 6: APP WALKTHROUGH & TUTORIAL
                 // ==========================================
                 item(key = "section_tutorial") {
                     SettingsSection(
-                        title = if (isArabic) "الجولة التعريفية" else "APP TUTORIAL",
+                        title = if (isArabic) "الجولة التعريفية والتهيئة" else "APP WALKTHROUGH & TUTORIAL",
                         themeColors = themeColors
                     ) {
+                        SettingsClickableRow(
+                            icon = Icons.Default.Language,
+                            title = if (isArabic) "إعادة شاشة التهيئة الأولى" else "Replay Onboarding Walkthrough",
+                            subtitle = if (isArabic) "تخصيص لغة ومظهر وموقع وميزات التطبيق من جديد" else "Customize language, theme, region, and focus settings again",
+                            themeColors = themeColors,
+                            testTag = "settings_reset_onboarding_row",
+                            onClick = {
+                                viewModel.resetOnboarding()
+                                onNavigateBack()
+                            }
+                        )
+
+                        HorizontalDivider(
+                            color = (if (isDarkMode) themeColors.border else SalatDivider).copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
                         SettingsClickableRow(
                             icon = Icons.Default.AutoStories,
                             title = stringResource(R.string.settings_replay_tutorial_title),

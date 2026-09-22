@@ -41,6 +41,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -118,10 +120,33 @@ fun CircularPercentageBadge(
 @Composable
 fun HifzHistoryContent(
     sessionLogs: List<HifzSessionLog>,
-    memorizedCount: Int,
+    memorizedCount: Int = 0,
+    practiceMemorizedCount: Int = memorizedCount,
+    recallMemorizedCount: Int = 0,
     themeColors: ReadingThemeColors,
     onDrillSession: (HifzSessionLog) -> Unit,
     onClearHistory: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    HifzStatsContent(
+        sessionLogs = sessionLogs,
+        practiceMemorizedCount = practiceMemorizedCount,
+        recallMemorizedCount = recallMemorizedCount,
+        themeColors = themeColors,
+        onDrillSession = onDrillSession,
+        onClearStats = onClearHistory,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun HifzStatsContent(
+    sessionLogs: List<HifzSessionLog>,
+    practiceMemorizedCount: Int,
+    recallMemorizedCount: Int,
+    themeColors: ReadingThemeColors,
+    onDrillSession: (HifzSessionLog) -> Unit,
+    onClearStats: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val latestSession = sessionLogs.firstOrNull()
@@ -189,11 +214,25 @@ fun HifzHistoryContent(
             )
         }
 
-        // 2. RELEVANT & MEANINGFUL HIFZ STATS
+        // 2. RELEVANT & MEANINGFUL HIFZ STATS (ALL-IN-ONE)
         HifzMasteryStatsCard(
             sessionLogs = sessionLogs,
-            memorizedCount = memorizedCount,
+            practiceMemorizedCount = practiceMemorizedCount,
+            recallMemorizedCount = recallMemorizedCount,
             themeColors = themeColors
+        )
+
+        // 2.2. DETAILED AYAH RETENTION & RECALL OUTCOMES (Right, Struggled, Missed)
+        HifzAyahRetentionCard(
+            sessionLogs = sessionLogs,
+            themeColors = themeColors
+        )
+
+        // 2.4. SURAH-BY-SURAH MASTERY BREAKDOWN
+        SurahHifzBreakdownCard(
+            sessionLogs = sessionLogs,
+            themeColors = themeColors,
+            onDrillSession = onDrillSession
         )
 
         // 2.5. SPACED REPETITION SCHEDULE
@@ -232,7 +271,7 @@ fun HifzHistoryContent(
             sessionLogs = sessionLogs,
             themeColors = themeColors,
             onDrillSession = onDrillSession,
-            onClearHistory = onClearHistory
+            onClearHistory = onClearStats
         )
     }
 }
@@ -638,17 +677,21 @@ private fun PreviousSessionCard(
 }
 
 /**
- * 2. HIFZ MASTERY STATS CARD (Strictly relevant, necessary memorization metrics)
+ * 2. HIFZ MASTERY STATS CARD (Strictly relevant, separated Practice and Recall metrics)
  */
 @Composable
 private fun HifzMasteryStatsCard(
     sessionLogs: List<HifzSessionLog>,
-    memorizedCount: Int,
+    practiceMemorizedCount: Int,
+    recallMemorizedCount: Int,
     themeColors: ReadingThemeColors
 ) {
     val totalQuranVerses = 6236
-    val quranProgressPercentage = if (totalQuranVerses > 0) {
-        ((memorizedCount.toFloat() / totalQuranVerses) * 100).toInt()
+    val practiceProgressPercentage = if (totalQuranVerses > 0) {
+        ((practiceMemorizedCount.toFloat() / totalQuranVerses) * 100).toInt()
+    } else 0
+    val recallProgressPercentage = if (totalQuranVerses > 0) {
+        ((recallMemorizedCount.toFloat() / totalQuranVerses) * 100).toInt()
     } else 0
 
     val totalSessions = sessionLogs.size
@@ -689,28 +732,29 @@ private fun HifzMasteryStatsCard(
                 )
             )
 
-            // Circular Percentage Metrics Row (Percentages are rendered in circular meters)
+            // Circular Percentage Metrics Row (All 3 Key Dimensions in 1 Screen)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Circular Percentage: Quran Memorization Coverage
+                // 1. Practice Marked Ayahs
                 Column(
+                    modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     CircularPercentageBadge(
-                        percentage = quranProgressPercentage,
-                        size = 64.dp,
-                        strokeWidth = 5.dp,
+                        percentage = practiceProgressPercentage,
+                        size = 56.dp,
+                        strokeWidth = 4.5.dp,
                         progressColor = themeColors.accent,
                         trackColor = themeColors.accent.copy(alpha = 0.15f),
                         textColor = themeColors.arabicText,
-                        textSize = 14.sp
+                        textSize = 13.sp
                     )
                     Text(
-                        text = "Qur'an Coverage",
+                        text = "Practice",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = themeColors.arabicText,
@@ -718,7 +762,7 @@ private fun HifzMasteryStatsCard(
                         )
                     )
                     Text(
-                        text = "$memorizedCount / 6,236 Ayahs",
+                        text = "$practiceMemorizedCount / 6.2k",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = themeColors.translationText,
                             fontSize = 10.sp
@@ -729,27 +773,28 @@ private fun HifzMasteryStatsCard(
                 // Vertical Divider
                 Box(
                     modifier = Modifier
-                        .height(60.dp)
+                        .height(50.dp)
                         .width(1.dp)
                         .background(themeColors.border.copy(alpha = 0.25f))
                 )
 
-                // Circular Percentage: Recall Accuracy
+                // 2. Recall Tested Ayahs
                 Column(
+                    modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     CircularPercentageBadge(
-                        percentage = accuracyPercentage,
-                        size = 64.dp,
-                        strokeWidth = 5.dp,
-                        progressColor = themeColors.accent,
-                        trackColor = themeColors.accent.copy(alpha = 0.15f),
+                        percentage = recallProgressPercentage,
+                        size = 56.dp,
+                        strokeWidth = 4.5.dp,
+                        progressColor = Color(0xFFC68A00),
+                        trackColor = Color(0xFFC68A00).copy(alpha = 0.15f),
                         textColor = themeColors.arabicText,
-                        textSize = 14.sp
+                        textSize = 13.sp
                     )
                     Text(
-                        text = "Recall Accuracy",
+                        text = "Self-Recall",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = themeColors.arabicText,
@@ -757,7 +802,47 @@ private fun HifzMasteryStatsCard(
                         )
                     )
                     Text(
-                        text = "$totalMemorizedInSessions / $totalVersesTested Verses",
+                        text = "$recallMemorizedCount / 6.2k",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = themeColors.translationText,
+                            fontSize = 10.sp
+                        )
+                    )
+                }
+
+                // Vertical Divider
+                Box(
+                    modifier = Modifier
+                        .height(50.dp)
+                        .width(1.dp)
+                        .background(themeColors.border.copy(alpha = 0.25f))
+                )
+
+                // 3. Recall Accuracy
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    CircularPercentageBadge(
+                        percentage = accuracyPercentage,
+                        size = 56.dp,
+                        strokeWidth = 4.5.dp,
+                        progressColor = Color(0xFF2A4365),
+                        trackColor = Color(0xFF2A4365).copy(alpha = 0.15f),
+                        textColor = themeColors.arabicText,
+                        textSize = 13.sp
+                    )
+                    Text(
+                        text = "Accuracy",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = themeColors.arabicText,
+                            fontSize = 11.sp
+                        )
+                    )
+                    Text(
+                        text = if (totalVersesTested > 0) "$totalMemorizedInSessions / $totalVersesTested v" else "100%",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = themeColors.translationText,
                             fontSize = 10.sp
@@ -774,21 +859,21 @@ private fun HifzMasteryStatsCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 CleanStatMetricItem(
-                    label = "Total Sessions",
+                    label = "Sessions",
                     value = "$totalSessions",
                     icon = Icons.Default.Timeline,
                     themeColors = themeColors,
                     modifier = Modifier.weight(1f)
                 )
                 CleanStatMetricItem(
-                    label = "Surahs Practiced",
+                    label = "Surahs",
                     value = "$distinctSurahsCount",
                     icon = Icons.Default.MenuBook,
                     themeColors = themeColors,
                     modifier = Modifier.weight(1f)
                 )
                 CleanStatMetricItem(
-                    label = "Total Drills",
+                    label = "Drills",
                     value = "$totalDrillRepetitions",
                     icon = Icons.Default.Repeat,
                     themeColors = themeColors,
@@ -844,6 +929,409 @@ private fun CleanStatMetricItem(
             ),
             textAlign = TextAlign.Center
         )
+    }
+}
+
+/**
+ * 2.2. RETENTION & RECALL OUTCOMES (Got It, Struggled, Missed)
+ */
+@Composable
+private fun HifzAyahRetentionCard(
+    sessionLogs: List<HifzSessionLog>,
+    themeColors: ReadingThemeColors
+) {
+    val totalGotIt = remember(sessionLogs) { sessionLogs.sumOf { it.ayahsMemorized } }
+    val totalStruggled = remember(sessionLogs) { sessionLogs.sumOf { it.ayahsStruggled } }
+    val totalMissed = remember(sessionLogs) { sessionLogs.sumOf { it.ayahsMissed } }
+    val totalHints = remember(sessionLogs) { sessionLogs.sumOf { it.hintsUsed } }
+    val totalAyahsTested = totalGotIt + totalStruggled + totalMissed
+
+    val tealPrimary = Color(0xFF1BA486)
+    val tealBg = Color(0xFFE6F6F1)
+    val goldPrimary = Color(0xFFC68A00)
+    val goldBg = Color(0xFFFBF0DC)
+    val redPrimary = Color(0xFFD32F2F)
+    val redBg = Color(0xFFFFEBEE)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = themeColors.surface),
+        border = null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "RECALL & RETENTION BREAKDOWN",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
+                        color = tealPrimary,
+                        fontSize = 10.sp
+                    )
+                )
+                Text(
+                    text = if (totalAyahsTested > 0) "$totalAyahsTested ayahs tested" else "No test data",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = themeColors.translationText,
+                        fontSize = 10.5.sp
+                    )
+                )
+            }
+
+            // 3 Outcome Metric Chips
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // 1. Got it
+                RetentionOutcomeChip(
+                    modifier = Modifier.weight(1f),
+                    title = "Got It",
+                    count = totalGotIt,
+                    accentColor = tealPrimary,
+                    bgColor = tealBg,
+                    icon = Icons.Default.Check
+                )
+
+                // 2. Struggled
+                RetentionOutcomeChip(
+                    modifier = Modifier.weight(1f),
+                    title = "Struggled",
+                    count = totalStruggled,
+                    accentColor = goldPrimary,
+                    bgColor = goldBg,
+                    icon = Icons.Default.Repeat
+                )
+
+                // 3. Missed
+                RetentionOutcomeChip(
+                    modifier = Modifier.weight(1f),
+                    title = "Missed",
+                    count = totalMissed,
+                    accentColor = redPrimary,
+                    bgColor = redBg,
+                    icon = Icons.Default.Close
+                )
+            }
+
+            if (totalHints > 0) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFEDF2F7),
+                    border = null,
+                    shadowElevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Psychology,
+                            contentDescription = null,
+                            tint = Color(0xFF2A4365),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "💡 $totalHints hint reveals used across recall sessions",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = Color(0xFF2A4365),
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 11.sp
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RetentionOutcomeChip(
+    title: String,
+    count: Int,
+    accentColor: Color,
+    bgColor: Color,
+    icon: ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = bgColor,
+        border = null,
+        shadowElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = accentColor.copy(alpha = 0.18f),
+                modifier = Modifier.size(26.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = "$count",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    color = accentColor,
+                    fontSize = 17.sp
+                )
+            )
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor,
+                    fontSize = 10.5.sp
+                )
+            )
+        }
+    }
+}
+
+/**
+ * 2.4. SURAH-BY-SURAH MASTERY BREAKDOWN CARD
+ */
+data class SurahHifzBreakdownItem(
+    val surahNumber: Int,
+    val surahName: String,
+    val surahNameArabic: String,
+    val sessionsCount: Int,
+    val totalVersesTested: Int,
+    val gotItCount: Int,
+    val struggledCount: Int,
+    val missedCount: Int,
+    val accuracyPercentage: Int,
+    val latestSession: HifzSessionLog
+)
+
+@Composable
+private fun SurahHifzBreakdownCard(
+    sessionLogs: List<HifzSessionLog>,
+    themeColors: ReadingThemeColors,
+    onDrillSession: (HifzSessionLog) -> Unit
+) {
+    val surahStats = remember(sessionLogs) {
+        sessionLogs.groupBy { it.surahNumber }.map { (surahNum, logs) ->
+            val first = logs.first()
+            val gotIt = logs.sumOf { it.ayahsMemorized }
+            val struggled = logs.sumOf { it.ayahsStruggled }
+            val missed = logs.sumOf { it.ayahsMissed }
+            val totalAyahs = logs.sumOf { it.totalAyahs }
+            val accuracy = if (totalAyahs > 0) (((gotIt.toFloat() - struggled * 0.3f).coerceAtLeast(0f) / totalAyahs) * 100).toInt() else 100
+            SurahHifzBreakdownItem(
+                surahNumber = surahNum,
+                surahName = first.surahName,
+                surahNameArabic = first.surahNameArabic,
+                sessionsCount = logs.size,
+                totalVersesTested = totalAyahs,
+                gotItCount = gotIt,
+                struggledCount = struggled,
+                missedCount = missed,
+                accuracyPercentage = accuracy.coerceIn(0, 100),
+                latestSession = first
+            )
+        }.sortedByDescending { it.sessionsCount }
+    }
+
+    if (surahStats.isEmpty()) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = themeColors.surface),
+        border = null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFE6F6F1),
+                        border = null,
+                        shadowElevation = 0.dp
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = null,
+                            tint = Color(0xFF1BA486),
+                            modifier = Modifier.padding(6.dp).size(14.dp)
+                        )
+                    }
+                    Text(
+                        text = "SURAH-BY-SURAH BREAKDOWN",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp,
+                            color = Color(0xFF1BA486),
+                            fontSize = 10.sp
+                        )
+                    )
+                }
+
+                Text(
+                    text = "${surahStats.size} Surahs tested",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = themeColors.translationText,
+                        fontSize = 10.5.sp
+                    )
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                surahStats.forEach { stat ->
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = themeColors.background,
+                        border = null,
+                        shadowElevation = 0.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onDrillSession(stat.latestSession) }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // Surah Number Badge
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFFEDF2F7),
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "${stat.surahNumber}",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF2A4365),
+                                                fontSize = 12.sp
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(
+                                        text = "Surah ${stat.surahName}",
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = themeColors.arabicText,
+                                            fontSize = 13.5.sp
+                                        )
+                                    )
+
+                                    // Granular Metric Badges
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "✓ ${stat.gotItCount}",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = Color(0xFF1BA486),
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 10.5.sp
+                                            )
+                                        )
+                                        if (stat.struggledCount > 0) {
+                                            Text(
+                                                text = "⚡ ${stat.struggledCount}",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = Color(0xFFC68A00),
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 10.5.sp
+                                                )
+                                            )
+                                        }
+                                        if (stat.missedCount > 0) {
+                                            Text(
+                                                text = "✗ ${stat.missedCount}",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = Color(0xFFD32F2F),
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 10.5.sp
+                                                )
+                                            )
+                                        }
+                                        Text(
+                                            text = "• ${stat.sessionsCount} session${if (stat.sessionsCount > 1) "s" else ""}",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = themeColors.translationText,
+                                                fontSize = 10.sp
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Accuracy percentage badge
+                            CircularPercentageBadge(
+                                percentage = stat.accuracyPercentage,
+                                size = 36.dp,
+                                strokeWidth = 3.dp,
+                                progressColor = if (stat.accuracyPercentage >= 80) Color(0xFF1BA486) else Color(0xFFC68A00),
+                                trackColor = if (stat.accuracyPercentage >= 80) Color(0xFFE6F6F1) else Color(0xFFFBF0DC),
+                                textColor = themeColors.arabicText,
+                                textSize = 10.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1133,9 +1621,12 @@ private fun SessionHistoryItemRow(
                             )
                         )
                         // Pill badge for mode
+                        val isRecall = log.mode == "Self-Recall"
+                        val modeBg = if (isRecall) Color(0xFFFBF0DC) else Color(0xFFE6F6F1)
+                        val modeTextColor = if (isRecall) Color(0xFFC68A00) else Color(0xFF1BA486)
                         Surface(
                             shape = CircleShape,
-                            color = themeColors.background,
+                            color = modeBg,
                             border = null,
                             shadowElevation = 0.dp
                         ) {
@@ -1143,24 +1634,76 @@ private fun SessionHistoryItemRow(
                                 text = log.mode,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = themeColors.accent,
+                                    color = modeTextColor,
                                     fontSize = 9.5.sp
                                 ),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    // Granular Outcome Badges Row
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Ayahs ${log.startAyah}–${log.endAyah}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = themeColors.arabicText,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 11.5.sp
+                            )
+                        )
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = themeColors.translationText,
+                                fontSize = 11.sp
+                            )
+                        )
+                        Text(
+                            text = "✓ ${log.ayahsMemorized}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = Color(0xFF1BA486),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp
+                            )
+                        )
+                        if (log.ayahsStruggled > 0) {
+                            Text(
+                                text = "⚡ ${log.ayahsStruggled}",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color(0xFFC68A00),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+                        if (log.ayahsMissed > 0) {
+                            Text(
+                                text = "✗ ${log.ayahsMissed}",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color(0xFFD32F2F),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+                        if (log.hintsUsed > 0) {
+                            Text(
+                                text = "💡 ${log.hintsUsed}",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color(0xFF2A4365),
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 10.5.sp
+                                )
                             )
                         }
                     }
 
                     Text(
-                        text = "Ayahs ${log.startAyah}–${log.endAyah} • ${log.ayahsMemorized}/${log.totalAyahs} memorized${if (log.ayahsMissed > 0) " • ${log.ayahsMissed} missed" else ""}",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = themeColors.translationText,
-                            fontSize = 11.sp
-                        )
-                    )
-
-                    Text(
-                        text = log.formattedDate,
+                        text = "${log.relativeTime} • ${log.formattedDate}",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = themeColors.translationText.copy(alpha = 0.7f),
                             fontSize = 10.sp

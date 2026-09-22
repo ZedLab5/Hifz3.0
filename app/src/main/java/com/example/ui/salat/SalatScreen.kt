@@ -2077,6 +2077,7 @@ private fun SalatTimesContentInternal(
     val alertTypesMap by viewModel.prayerAlertTypes.collectAsStateWithLifecycle()
     val perPrayerAdhanSounds by viewModel.perPrayerAdhanSounds.collectAsStateWithLifecycle()
     val isAudioPlaying by viewModel.isAthanAudioPreviewPlaying.collectAsStateWithLifecycle()
+    val isLocationConfigured by viewModel.isLocationConfigured.collectAsStateWithLifecycle()
     val supplementaryTimes by viewModel.supplementaryPrayerTimes.collectAsStateWithLifecycle()
     val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
 
@@ -2158,7 +2159,13 @@ private fun SalatTimesContentInternal(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isArabic) selectedZone.arabicName else "${selectedZone.name}, ${selectedZone.country}",
+                            text = if (!isLocationConfigured) {
+                                if (isArabic) "الموقع غير مفعّل" else "Location is Off"
+                            } else if (isArabic) {
+                                selectedZone.arabicName
+                            } else {
+                                "${selectedZone.name}, ${selectedZone.country}"
+                            },
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.titleText,
@@ -2168,7 +2175,11 @@ private fun SalatTimesContentInternal(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${selectedAuthority.name} • ${if (isHanafi) stringResource(R.string.salat_hanafi_asr) else stringResource(R.string.salat_standard_asr)}",
+                            text = if (!isLocationConfigured) {
+                                if (isArabic) "اختر مدينة أو فعّل الموقع لتحديث المواقيت" else "Select city or enable GPS to calculate times"
+                            } else {
+                                "${selectedAuthority.name} • ${if (isHanafi) stringResource(R.string.salat_hanafi_asr) else stringResource(R.string.salat_standard_asr)}"
+                            },
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = colors.subtext,
                                 fontSize = 11.5.sp
@@ -3822,6 +3833,7 @@ private fun SalatCalendarModalSheet(
     val isHanafiAsr by viewModel.isHanafiAsr.collectAsStateWithLifecycle()
     val minuteOffsets by viewModel.prayerManualMinuteOffsets.collectAsStateWithLifecycle()
     val hijriOffset by viewModel.hijriAdjustmentDays.collectAsStateWithLifecycle()
+    val isLocationConfigured by viewModel.isLocationConfigured.collectAsStateWithLifecycle()
     val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
     
     val isArabic = appLanguage.equals("Arabic", ignoreCase = true) ||
@@ -3831,16 +3843,39 @@ private fun SalatCalendarModalSheet(
     var currentYearMonth by remember { mutableStateOf(java.time.YearMonth.now()) }
     val daysInMonth = remember(currentYearMonth) { currentYearMonth.lengthOfMonth() }
     
-    val monthPrayerTimes = remember(currentYearMonth, selectedZone, selectedAuthority, isHanafiAsr, minuteOffsets) {
+    val monthPrayerTimes = remember(currentYearMonth, selectedZone, selectedAuthority, isHanafiAsr, minuteOffsets, isLocationConfigured) {
         (1..daysInMonth).map { day ->
             val date = java.time.LocalDate.of(currentYearMonth.year, currentYearMonth.monthValue, day)
-            val times = viewModel.repository.calculatePrayerTimes(
-                zone = selectedZone,
-                authority = selectedAuthority,
-                isHanafiAsr = isHanafiAsr,
-                date = date,
-                minuteOffsets = minuteOffsets
-            )
+            val times = if (!isLocationConfigured) {
+                listOf(
+                    Pair("Fajr", "الفجر"),
+                    Pair("Sunrise", "الشروق"),
+                    Pair("Dhuhr", "الظهر"),
+                    Pair("Asr", "العصر"),
+                    Pair("Maghrib", "المغرب"),
+                    Pair("Isha", "العشاء")
+                ).map { pair ->
+                    com.example.data.model.PrayerTime(
+                        name = pair.first,
+                        arabicName = pair.second,
+                        timeString = "--:--",
+                        hour = 0,
+                        minute = 0,
+                        isNext = false,
+                        isPast = false,
+                        isCurrent = false,
+                        isCompleted = false
+                    )
+                }
+            } else {
+                viewModel.repository.calculatePrayerTimes(
+                    zone = selectedZone,
+                    authority = selectedAuthority,
+                    isHanafiAsr = isHanafiAsr,
+                    date = date,
+                    minuteOffsets = minuteOffsets
+                )
+            }
             date to times
         }
     }
@@ -3876,7 +3911,13 @@ private fun SalatCalendarModalSheet(
                         )
                     )
                     Text(
-                        text = if (isArabic) selectedZone.arabicName else selectedZone.name,
+                        text = if (!isLocationConfigured) {
+                            if (isArabic) "الموقع غير مفعّل" else "Location is Off"
+                        } else if (isArabic) {
+                            selectedZone.arabicName
+                        } else {
+                            selectedZone.name
+                        },
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = colors.titleText

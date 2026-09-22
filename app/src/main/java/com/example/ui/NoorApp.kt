@@ -235,8 +235,11 @@ fun NoorApp(
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        viewModel.updateNotificationPermissionStatus(isGranted)
         if (!isGranted) {
             viewModel.showToast(if (isArabic) "يرجى تمكين الإشعارات من إعدادات الهاتف لتلقي تنبيهات الصلاة." else "Please enable notifications in system settings to receive prayer alerts.")
+        } else {
+            viewModel.showToast(if (isArabic) "تم تفعيل تنبيهات الصلاة بنجاح" else "Prayer notifications enabled successfully")
         }
     }
 
@@ -248,6 +251,8 @@ fun NoorApp(
                 val resolvedZone = com.example.data.prayer.GpsLocationResolver.resolveCurrentZone(context)
                 if (resolvedZone != null) {
                     viewModel.selectPrayerZone(resolvedZone)
+                } else {
+                    viewModel.markLocationConfigured()
                 }
             }
         } else {
@@ -260,10 +265,10 @@ fun NoorApp(
     }
 
     val bottomNavItems = listOf(
-        BottomNavItem(NoorDestination.SETTINGS, R.string.nav_settings, Icons.Default.Settings),
-        BottomNavItem(NoorDestination.SALAT, R.string.nav_salat, Icons.Default.AccessTime),
         BottomNavItem(NoorDestination.HOME, R.string.nav_home, Icons.Default.Home),
         BottomNavItem(NoorDestination.QURAN_SURAH_LIST, R.string.nav_quran, Icons.AutoMirrored.Filled.MenuBook),
+        BottomNavItem(NoorDestination.SALAT, R.string.nav_salat, Icons.Default.AccessTime),
+        BottomNavItem(NoorDestination.TASBIH, R.string.nav_tasbih, Icons.Default.TouchApp),
         BottomNavItem(
             destination = null,
             labelRes = R.string.nav_shortcuts,
@@ -332,11 +337,18 @@ fun NoorApp(
                             val itemLabel = stringResource(item.labelRes)
 
                             val isShortcuts = item.destination == null
+                            val navTag = when (item.destination) {
+                                NoorDestination.HOME -> "nav_item_home"
+                                NoorDestination.QURAN_SURAH_LIST -> "nav_item_quran"
+                                NoorDestination.SALAT -> "nav_item_salat"
+                                NoorDestination.TASBIH -> "nav_item_tasbih"
+                                else -> "nav_item_shortcuts"
+                            }
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .then(if (isShortcuts) Modifier.testTag("nav_item_shortcuts") else Modifier)
+                                    .testTag(navTag)
                                     .then(
                                         if (isShortcuts) {
                                             Modifier.spotlightTarget(homeSpotlightState, "nav_shortcuts")
@@ -419,7 +431,15 @@ fun NoorApp(
             ) { dest ->
                 saveableStateHolder.SaveableStateProvider(key = dest) {
                     when (dest) {
-                        NoorDestination.HOME -> HomeScreen(viewModel = viewModel)
+                        NoorDestination.HOME -> HomeScreen(
+                            viewModel = viewModel,
+                            onRequestLocation = {
+                                locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                            },
+                            onRequestNotifications = {
+                                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        )
                         NoorDestination.STREAKS -> StreaksScreen(viewModel = viewModel)
                         NoorDestination.QURAN_SURAH_LIST -> QuranSurahSelectionScreen(viewModel = viewModel)
                         NoorDestination.QURAN_READER -> QuranReaderScreen(viewModel = viewModel)

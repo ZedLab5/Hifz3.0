@@ -53,8 +53,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +72,8 @@ import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -76,6 +81,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.util.Locale
 import com.example.R
@@ -98,6 +105,8 @@ import com.example.ui.theme.rememberHomePageColors
 @Composable
 fun HomeScreen(
     viewModel: MainViewModel,
+    onRequestLocation: (() -> Unit)? = null,
+    onRequestNotifications: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isDark by viewModel.isDarkMode.collectAsStateWithLifecycle()
@@ -118,27 +127,66 @@ fun HomeScreen(
     val nextPrayerCountdown by viewModel.nextPrayerCountdown.collectAsStateWithLifecycle()
     val locationName by viewModel.locationName.collectAsStateWithLifecycle()
     val selectedZone by viewModel.selectedPrayerZone.collectAsStateWithLifecycle()
+    val isLocationConfigured by viewModel.isLocationConfigured.collectAsStateWithLifecycle()
+    val hasNotificationPermission by viewModel.hasNotificationPermission.collectAsStateWithLifecycle()
+    val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
 
-    val gmtTag = remember(selectedZone.timeZoneId) {
-        try {
-            val zoneId = java.time.ZoneId.of(selectedZone.timeZoneId)
-            val offset = zoneId.rules.getOffset(java.time.Instant.now())
-            val hours = offset.totalSeconds / 3600
-            val sign = if (hours >= 0) "+" else ""
-            "GMT$sign$hours"
-        } catch (_: Exception) {
-            "GMT+7"
+    val isArabic = appLanguage.equals("Arabic", ignoreCase = true) ||
+            appLanguage == "العربية" ||
+            appLanguage.startsWith("ar", ignoreCase = true)
+
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var diagnosticCheckKey by remember { mutableStateOf(0) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                diagnosticCheckKey++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
-    val formattedCountdown = remember(nextPrayerCountdown) {
-        val parts = nextPrayerCountdown.trim().split(":")
-        if (parts.size >= 2) {
-            val h = parts[0].toIntOrNull() ?: 0
-            val m = parts[1].toIntOrNull() ?: 0
-            if (h > 0) "${h}h ${m}m" else "${m}m"
+    val isBatteryExempt = remember(context, diagnosticCheckKey) {
+        com.example.data.prayer.AlarmReliabilityHelper.isIgnoringBatteryOptimizations(context)
+    }
+    val canExactAlarm = remember(context, diagnosticCheckKey) {
+        com.example.data.prayer.AlarmReliabilityHelper.canScheduleExactAlarms(context)
+    }
+    val needsTroubleshooting = isLocationConfigured && hasNotificationPermission && (!isBatteryExempt || !canExactAlarm)
+
+    val gmtTag = remember(selectedZone.timeZoneId, isLocationConfigured) {
+        if (!isLocationConfigured) {
+            "--"
         } else {
-            nextPrayerCountdown
+            try {
+                val zoneId = java.time.ZoneId.of(selectedZone.timeZoneId)
+                val offset = zoneId.rules.getOffset(java.time.Instant.now())
+                val hours = offset.totalSeconds / 3600
+                val sign = if (hours >= 0) "+" else ""
+                "GMT$sign$hours"
+            } catch (_: Exception) {
+                "GMT"
+            }
+        }
+    }
+
+    val formattedCountdown = remember(nextPrayerCountdown, isLocationConfigured) {
+        if (!isLocationConfigured) {
+            "--:--"
+        } else {
+            val parts = nextPrayerCountdown.trim().split(":")
+            if (parts.size >= 2) {
+                val h = parts[0].toIntOrNull() ?: 0
+                val m = parts[1].toIntOrNull() ?: 0
+                if (h > 0) "${h}h ${m}m" else "${m}m"
+            } else {
+                nextPrayerCountdown
+            }
         }
     }
 
@@ -171,50 +219,125 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // 1. Header row
-        HomeHeaderRow(
-            viewModel = viewModel,
-            location = locationName,
-            isDark = isDark,
-            textPrimary = textPrimary,
-            textSecondary = textSecondary,
-            primaryTeal = primaryTeal,
-            secondaryGold = secondaryGold,
-            surfaceColor = surfaceColor,
-            borderDivider = borderDivider
-        )
+            HomeHeaderRow(
+                viewModel = viewModel,
+                location = locationName,
+                isDark = isDark,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary,
+                primaryTeal = primaryTeal,
+                secondaryGold = secondaryGold,
+                surfaceColor = surfaceColor,
+                borderDivider = borderDivider
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // Hero Salat Timeline: Fixed on top of the Home Feed (no other sections can go above it)
-        HeroNextPrayerCard(
-            nextPrayerName = nextPrayerName.ifBlank { "Fajr" },
-            nextPrayerTime = nextPrayerTimeStr.ifBlank { "05:29" },
-            gmtTag = gmtTag,
-            countdownText = nextPrayerCountdown.ifBlank { "02:57:45" },
-            prayers = prayerTimes,
-            isDark = isDark,
-            goldTintBg = goldTintBg,
-            textPrimary = textPrimary,
-            textSecondary = textSecondary,
-            primaryTeal = primaryTeal,
-            secondaryGold = secondaryGold,
-            borderDivider = borderDivider,
-            modifier = Modifier.testTag("hero_next_prayer_card")
-        )
+            // Hero Salat Timeline: Fixed on top of the Home Feed (no other sections can go above it)
+            HeroNextPrayerCard(
+                nextPrayerName = if (!isLocationConfigured) (if (isArabic) "مواقيت الصلاة" else "Prayer Times") else nextPrayerName.ifBlank { "Salat" },
+                nextPrayerTime = if (!isLocationConfigured) "--:--" else nextPrayerTimeStr.ifBlank { "--:--" },
+                gmtTag = gmtTag,
+                countdownText = if (!isLocationConfigured) "--:--" else nextPrayerCountdown.ifBlank { "--:--" },
+                prayers = prayerTimes,
+                isLocationConfigured = isLocationConfigured,
+                isDark = isDark,
+                goldTintBg = goldTintBg,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary,
+                primaryTeal = primaryTeal,
+                secondaryGold = secondaryGold,
+                borderDivider = borderDivider,
+                modifier = Modifier.testTag("hero_next_prayer_card")
+            )
 
-        // Standardized spacing across all home sections
-        val sectionSpacing = 18.dp
+            // Fixed Notices: Positioned below Hero and above Quick Access tools
+            val showNotices = !isLocationConfigured || !hasNotificationPermission || needsTroubleshooting
+            if (showNotices) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (!isLocationConfigured) {
+                        HomePermissionNoticeBanner(
+                            icon = Icons.Default.Explore,
+                            iconTint = Color(0xFFC68A00),
+                            iconBg = Color(0xFFFBF0DC),
+                            title = if (isArabic) "الموقع غير مفعّل" else "Location is Off",
+                            description = if (isArabic) "حدد مدينتك أو فعّل الموقع لعرض مواقيت الصلاة واتجاه القبلة بدقة." else "Set your city or enable GPS to calculate accurate prayer times.",
+                            actionText = if (isArabic) "تحديد الموقع" else "Set Location",
+                            onAction = {
+                                if (onRequestLocation != null) {
+                                    onRequestLocation()
+                                } else {
+                                    viewModel.openSalatSettings()
+                                }
+                            },
+                            surfaceColor = surfaceColor,
+                            borderDivider = borderDivider,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary
+                        )
+                    }
 
-        // 2. Dynamic modular sections driven by user's customizable feed order and visibility
-        val visibleWidgets = widgetsOrder.filter { it != HomeWidgetType.SALAT_TIMELINE && (widgetsVisibility[it] ?: it.defaultVisible) }
+                    if (!hasNotificationPermission) {
+                        HomePermissionNoticeBanner(
+                            icon = Icons.Default.AccessTime,
+                            iconTint = Color(0xFF1BA486),
+                            iconBg = Color(0xFFE6F6F1),
+                            title = if (isArabic) "تنبيهات الصلاة متوقفة" else "Prayer Alerts Muted",
+                            description = if (isArabic) "اسمح بالإشعارات لتلقي تنبيهات الأذان عند دخول وقت الصلاة." else "Enable notifications to receive timely adhan calls for each prayer.",
+                            actionText = if (isArabic) "تفعيل التنبيهات" else "Enable Alerts",
+                            onAction = {
+                                if (onRequestNotifications != null) {
+                                    onRequestNotifications()
+                                } else {
+                                    viewModel.updateNotificationPermissionStatus()
+                                }
+                            },
+                            surfaceColor = surfaceColor,
+                            borderDivider = borderDivider,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary
+                        )
+                    }
 
-        visibleWidgets.forEachIndexed { index, widgetType ->
-            Spacer(modifier = Modifier.height(sectionSpacing))
-
-            when (widgetType) {
-                HomeWidgetType.SALAT_TIMELINE -> {
-                    // Handled above as a fixed top section
+                    if (needsTroubleshooting) {
+                        HomePermissionNoticeBanner(
+                            icon = Icons.Default.Security,
+                            iconTint = Color(0xFF2A4365),
+                            iconBg = Color(0xFFEDF2F7),
+                            title = if (isArabic) "تحسين دقة مواقيت الأذان" else "Optimize Adhan Reliability",
+                            description = if (isArabic) "اضبط استثناء البطارية وصلاحية المنبهات لضمان انطلاق الأذان في موعده تماماً." else "Check background battery & alarm permissions to ensure exact athan playback.",
+                            actionText = if (isArabic) "فحص الإعدادات" else "Troubleshoot",
+                            onAction = {
+                                viewModel.navigateTo(NoorDestination.NOTIFICATION_TROUBLESHOOTING)
+                            },
+                            surfaceColor = surfaceColor,
+                            borderDivider = borderDivider,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary
+                        )
+                    }
                 }
+            }
+
+            // Standardized spacing across all home sections
+            val sectionSpacing = 18.dp
+
+            // 2. Dynamic modular sections driven by user's customizable feed order and visibility
+            val visibleWidgets = widgetsOrder.filter { it != HomeWidgetType.SALAT_TIMELINE && (widgetsVisibility[it] ?: it.defaultVisible) }
+
+            visibleWidgets.forEachIndexed { index, widgetType ->
+                Spacer(modifier = Modifier.height(sectionSpacing))
+
+                when (widgetType) {
+                    HomeWidgetType.SALAT_TIMELINE -> {
+                        // Handled above as a fixed top section
+                    }
                 HomeWidgetType.SPIRITUAL_ESSENTIALS -> {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -370,7 +493,7 @@ private fun HomeHeaderRow(
                 )
                 Spacer(modifier = Modifier.height(1.dp))
                 Text(
-                    text = location.ifBlank { "Tangier, Morocco" },
+                    text = location.ifBlank { "Location is Off" },
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
@@ -437,6 +560,101 @@ private fun HomeHeaderRow(
 }
 
 // =========================================================================
+// PERMISSION & LOCATION NOTICE BANNER (Official Palette)
+// =========================================================================
+@Composable
+private fun HomePermissionNoticeBanner(
+    icon: ImageVector,
+    iconTint: Color,
+    iconBg: Color,
+    title: String,
+    description: String,
+    actionText: String,
+    onAction: () -> Unit,
+    surfaceColor: Color,
+    borderDivider: Color,
+    textPrimary: Color,
+    textSecondary: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onAction() },
+        shape = RoundedCornerShape(16.dp),
+        color = surfaceColor,
+        border = BorderStroke(1.dp, borderDivider),
+        shadowElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(iconBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.5.sp,
+                        color = textPrimary
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 11.5.sp,
+                        color = textSecondary,
+                        lineHeight = 15.sp
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = Color(0xFFEDF2F7),
+                border = null
+            ) {
+                Text(
+                    text = actionText,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2A4365),
+                        fontSize = 11.5.sp
+                    ),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+// =========================================================================
 // 2. HERO "NEXT PRAYER" CARD
 // =========================================================================
 @Composable
@@ -446,6 +664,7 @@ private fun HeroNextPrayerCard(
     gmtTag: String,
     countdownText: String,
     prayers: List<PrayerTime>,
+    isLocationConfigured: Boolean = true,
     isDark: Boolean,
     goldTintBg: Color,
     textPrimary: Color,
@@ -456,43 +675,50 @@ private fun HeroNextPrayerCard(
     modifier: Modifier = Modifier
 ) {
     val displayPrayerName = when {
+        !isLocationConfigured -> "Salat"
         nextPrayerName.equals("Dzuhur", ignoreCase = true) -> "Dhuhr"
         nextPrayerName.isNotBlank() -> nextPrayerName
         else -> "Fajr"
     }
 
     // Format next prayer time cleanly as HH:mm
-    val displayNextPrayerTime = remember(nextPrayerTime) {
-        val raw = nextPrayerTime.trim().substringBefore(" ")
-        if (raw.contains(":")) raw else "05:29"
+    val displayNextPrayerTime = remember(nextPrayerTime, isLocationConfigured) {
+        if (!isLocationConfigured) {
+            "--:--"
+        } else {
+            val raw = nextPrayerTime.trim().substringBefore(" ")
+            if (raw.contains(":")) raw else "--:--"
+        }
     }
 
-    val displayCountdown = remember(countdownText) {
-        if (countdownText.isBlank() || countdownText == "00:00:00") "02:57:45" else countdownText
+    val displayCountdown = remember(countdownText, isLocationConfigured) {
+        if (!isLocationConfigured) {
+            "--:--"
+        } else if (countdownText.isBlank() || countdownText == "00:00:00") {
+            "--:--"
+        } else {
+            countdownText
+        }
     }
 
     val prayerKeys = remember { listOf("Fajr", "Dhuhr", "Asr", "Maghrib", "Isha") }
-    val stripItems = remember(prayers, nextPrayerName) {
+    val stripItems = remember(prayers, nextPrayerName, isLocationConfigured) {
         prayerKeys.map { key ->
             val match = prayers.firstOrNull { it.name.equals(key, ignoreCase = true) }
-            val time = match?.let {
-                String.format(Locale.US, "%02d:%02d", it.hour, it.minute)
-            } ?: when (key) {
-                "Fajr" -> "05:29"
-                "Sunrise" -> "07:02"
-                "Dhuhr" -> "13:21"
-                "Asr" -> "16:55"
-                "Maghrib" -> "19:39"
-                "Isha" -> "21:01"
-                else -> "--:--"
+            val time = if (!isLocationConfigured) {
+                "--:--"
+            } else {
+                match?.let {
+                    if (it.timeString == "--:--") "--:--" else String.format(Locale.US, "%02d:%02d", it.hour, it.minute)
+                } ?: "--:--"
             }
             val displayName = when {
                 key.equals("Dzuhur", ignoreCase = true) -> "Dhuhr"
                 else -> key
             }
-            val isActive = key.equals(nextPrayerName, ignoreCase = true) ||
+            val isActive = isLocationConfigured && (key.equals(nextPrayerName, ignoreCase = true) ||
                     (key.equals("Dhuhr", ignoreCase = true) && nextPrayerName.equals("Dzuhur", ignoreCase = true)) ||
-                    match?.isNext == true
+                    match?.isNext == true)
 
             PrayerStripEntry(
                 key = key,
