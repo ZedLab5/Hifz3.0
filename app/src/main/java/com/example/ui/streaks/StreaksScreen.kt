@@ -301,7 +301,7 @@ fun StreaksStatsContent(
         return
     }
 
-    var isMockDataActive by remember { mutableStateOf(true) }
+    var isMockDataActive by remember { mutableStateOf(false) }
 
     val mockRecentDays = remember {
         val today = LocalDate.now()

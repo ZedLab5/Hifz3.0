@@ -1236,7 +1236,7 @@ fun QuranReaderScreen(
                                     }
                                     Switch(
                                         checked = showTranslation,
-                                        onCheckedChange = { viewModel.showTranslation.value = it },
+                                        onCheckedChange = { viewModel.setShowTranslation(it) },
                                         colors = SwitchDefaults.colors(
                                             checkedThumbColor = Color.White,
                                             checkedTrackColor = themeColors.accent
@@ -1264,7 +1264,7 @@ fun QuranReaderScreen(
                                     }
                                     Switch(
                                         checked = showTransliteration,
-                                        onCheckedChange = { viewModel.showTransliteration.value = it },
+                                        onCheckedChange = { viewModel.setShowTransliteration(it) },
                                         colors = SwitchDefaults.colors(
                                             checkedThumbColor = Color.White,
                                             checkedTrackColor = themeColors.accent

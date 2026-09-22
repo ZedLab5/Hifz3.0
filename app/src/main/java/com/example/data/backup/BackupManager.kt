@@ -97,7 +97,24 @@ object BackupManager {
         "morning_evening_azkar_notification",
         "daily_ayah_notification",
         "qaza_reminder_notification",
-        "vibration_on_adhan"
+        "vibration_on_adhan",
+        "show_arabic_secondary_text",
+        "quran_show_translation",
+        "quran_show_transliteration",
+        "hijri_adjustment_days",
+        "selected_daily_mood",
+        "audio_playback_speed",
+        "is_audio_repeat_one",
+        "is_auto_advance_ayah",
+        "is_dnd_reading_enabled",
+        "adhan_volume",
+        "adhan_sound_global",
+        "is_streak_tracking_enabled",
+        "hifz_custom_pattern_enabled",
+        "tasbih_visual_theme",
+        "tasbih_marble_style",
+        "tasbih_transliteration_visible",
+        "tasbih_translation_visible"
     )
 
     private val USER_DATA_EXPLICIT_KEYS = setOf(

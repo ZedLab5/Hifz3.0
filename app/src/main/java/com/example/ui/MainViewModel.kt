@@ -450,12 +450,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateUserName(name: String) {
-        userName.value = if (name.isBlank()) "Guest Mode" else name
+        val newName = if (name.isBlank()) "Guest Mode" else name
+        userName.value = newName
+        try {
+            val prefs = getApplication<Application>().getSharedPreferences("noor_user_prefs", Context.MODE_PRIVATE)
+            prefs.edit().putString("user_name", newName).apply()
+        } catch (e: Exception) {}
     }
 
     // App Settings & Global Localization State
     val isSettingsModalOpen = MutableStateFlow(false)
-    val showArabicSecondaryText = MutableStateFlow(true)
+    val showArabicSecondaryText = MutableStateFlow(
+        try { sharedPrefs.getBoolean("show_arabic_secondary_text", true) } catch (e: Exception) { true }
+    )
     val appLanguage = MutableStateFlow(
         try {
             application.getSharedPreferences("noor_prefs", Context.MODE_PRIVATE)
@@ -497,6 +504,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleArabicSecondaryText(enabled: Boolean? = null) {
         val newState = enabled ?: !showArabicSecondaryText.value
         showArabicSecondaryText.value = newState
+        sharedPrefs.edit().putBoolean("show_arabic_secondary_text", newState).apply()
         triggerHaptic()
         showToast(if (newState) "Arabic secondary text enabled" else "Arabic secondary text hidden (English only)")
     }
@@ -715,7 +723,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val silentDurationMinutes = MutableStateFlow(
         sharedPrefs.getInt("silent_duration_minutes", 20)
     )
-    val hijriAdjustmentDays = MutableStateFlow(0)
+    val hijriAdjustmentDays = MutableStateFlow(
+        try { sharedPrefs.getInt("hijri_adjustment_days", 0) } catch (e: Exception) { 0 }
+    )
     val isAthanAudioPreviewPlaying = MutableStateFlow(false)
 
     // Per-Prayer Notification Timers (Offset minutes: -15 = 15m before, 0 = exact time, +10 = 10m after)
@@ -955,6 +965,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val current = hijriAdjustmentDays.value
         val updated = (current + delta).coerceIn(-3, 3)
         hijriAdjustmentDays.value = updated
+        sharedPrefs.edit().putInt("hijri_adjustment_days", updated).apply()
         triggerHaptic()
         showToast("Hijri calendar adjusted by $updated days")
     }
@@ -1058,7 +1069,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val athanSoundName = MutableStateFlow("Makkah Al-Mukarramah Adhan")
 
     // Daily Mood & Wisdom
-    val selectedMood = MutableStateFlow("Anxious")
+    val selectedMood = MutableStateFlow(
+        try { sharedPrefs.getString("selected_daily_mood", "Anxious") ?: "Anxious" } catch (e: Exception) { "Anxious" }
+    )
     val isIslamicWisdomMode = MutableStateFlow(true)
 
 
@@ -1067,14 +1080,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val isAudioBuffering = MutableStateFlow(false)
     val currentPlayingSurah = MutableStateFlow(QuranData.surahs.first())
     val currentPlayingVerse = MutableStateFlow(1)
-    val selectedReciter = MutableStateFlow(QuranData.reciters.first())
+    val selectedReciter = MutableStateFlow(
+        run {
+            val savedReciterId = try { sharedPrefs.getString("selected_reciter_id", null) } catch (e: Exception) { null }
+            if (savedReciterId != null) {
+                QuranData.reciters.find { it.id == savedReciterId } ?: QuranData.reciters.first()
+            } else {
+                QuranData.reciters.first()
+            }
+        }
+    )
     val reciters: List<Reciter> = QuranData.reciters
     val audioProgress = MutableStateFlow(0f)
     val audioDurationMs = MutableStateFlow(0)
     val audioCurrentPositionMs = MutableStateFlow(0)
-    val audioPlaybackSpeed = MutableStateFlow(1.0f)
-    val isAutoAdvanceAyah = MutableStateFlow(true)
-    val isAudioRepeatOne = MutableStateFlow(false)
+    val audioPlaybackSpeed = MutableStateFlow(
+        try { sharedPrefs.getFloat("audio_playback_speed", 1.0f) } catch (e: Exception) { 1.0f }
+    )
+    val isAutoAdvanceAyah = MutableStateFlow(
+        try { sharedPrefs.getBoolean("is_auto_advance_ayah", true) } catch (e: Exception) { true }
+    )
+    val isAudioRepeatOne = MutableStateFlow(
+        try { sharedPrefs.getBoolean("is_audio_repeat_one", false) } catch (e: Exception) { false }
+    )
     val isAyahAudioMode = MutableStateFlow(false)
     val sleepTimerMinutes = MutableStateFlow<Int?>(null)
     private var sleepTimerJob: Job? = null
@@ -1264,10 +1292,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val selectedSurahForReading = MutableStateFlow(QuranData.surahs.first())
     val targetAyahToScrollTo = MutableStateFlow(0)
     val quranScrollRequest = MutableStateFlow<QuranScrollRequest?>(null)
-    val arabicFontSizeSp = MutableStateFlow(24)
-    val selectedArabicFont = MutableStateFlow(QuranArabicFont.AMIRI)
-    val showTransliteration = MutableStateFlow(true)
-    val showTranslation = MutableStateFlow(true)
+    val arabicFontSizeSp = MutableStateFlow(
+        try { sharedPrefs.getInt("quran_arabic_font_size", 24) } catch (e: Exception) { 24 }
+    )
+    val selectedArabicFont = MutableStateFlow(
+        run {
+            val savedFontId = try { sharedPrefs.getString("quran_arabic_font", QuranArabicFont.AMIRI.id) } catch (e: Exception) { QuranArabicFont.AMIRI.id }
+            QuranArabicFont.fromId(savedFontId)
+        }
+    )
+    val showTransliteration = MutableStateFlow(
+        try { sharedPrefs.getBoolean("quran_show_transliteration", true) } catch (e: Exception) { true }
+    )
+    val showTranslation = MutableStateFlow(
+        try { sharedPrefs.getBoolean("quran_show_translation", true) } catch (e: Exception) { true }
+    )
     val isMushafFlowMode = MutableStateFlow(sharedPrefs.getBoolean("is_mushaf_flow_mode", false)) // Distraction-Free Pure Reading Flow
     val isQuranReaderFullscreen = MutableStateFlow(false) // Immersive Fullscreen Mode (resets per session)
     val isQuranSepiaMode = MutableStateFlow(sharedPrefs.getBoolean("is_quran_sepia_mode", false)) // Independent Sepia Parchment Canvas exclusive to Quran Reader
@@ -1290,7 +1329,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val memorizationSurah = MutableStateFlow<Surah>(QuranData.surahs.firstOrNull() ?: Surah(1, "الفاتحة", "Al-Fatihah", "The Opening", 7, "Meccan", emptyList()))
     val memorizationStartAyah = MutableStateFlow(1)
     val memorizationEndAyah = MutableStateFlow(7)
-    val memorizationMaskingStyle = MutableStateFlow(HifzMaskingStyle.BLUR_MUTED)
+    val memorizationMaskingStyle = MutableStateFlow(
+        try {
+            HifzMaskingStyle.valueOf(
+                sharedPrefs.getString("hifz_masking_style", HifzMaskingStyle.BLUR_MUTED.name)
+                    ?: HifzMaskingStyle.BLUR_MUTED.name
+            )
+        } catch (e: Exception) {
+            HifzMaskingStyle.BLUR_MUTED
+        }
+    )
     val hifzSilhouetteOpacity = MutableStateFlow(sharedPrefs.getFloat("hifz_silhouette_opacity", 0.18f))
     val memorizationDelaySeconds = MutableStateFlow(sharedPrefs.getInt("hifz_delay_seconds", 0))
     val memorizationLoopRange = MutableStateFlow(sharedPrefs.getBoolean("hifz_loop_range", false))
@@ -1655,6 +1703,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadSavedQuickAccessToolsConfig()
         refreshDownloadedSurahs()
 
+        // Rehydrate all user settings & options to ensure zero state regression across app restarts
+        try {
+            val userPrefs = application.getSharedPreferences("noor_user_prefs", Context.MODE_PRIVATE)
+            val savedUserName = userPrefs.getString("user_name", null)
+            if (!savedUserName.isNullOrBlank()) {
+                userName.value = savedUserName
+            }
+        } catch (e: Exception) {}
+
+        showArabicSecondaryText.value = sharedPrefs.getBoolean("show_arabic_secondary_text", true)
+        showTranslation.value = sharedPrefs.getBoolean("quran_show_translation", true)
+        showTransliteration.value = sharedPrefs.getBoolean("quran_show_transliteration", true)
+        arabicFontSizeSp.value = sharedPrefs.getInt("quran_arabic_font_size", 24)
+        val savedReciterId = sharedPrefs.getString("selected_reciter_id", null)
+        if (savedReciterId != null) {
+            QuranData.reciters.find { it.id == savedReciterId }?.let { selectedReciter.value = it }
+        }
+        audioPlaybackSpeed.value = sharedPrefs.getFloat("audio_playback_speed", 1.0f)
+        isAudioRepeatOne.value = sharedPrefs.getBoolean("is_audio_repeat_one", false)
+        isAutoAdvanceAyah.value = sharedPrefs.getBoolean("is_auto_advance_ayah", true)
+        hijriAdjustmentDays.value = sharedPrefs.getInt("hijri_adjustment_days", 0)
+        selectedMood.value = sharedPrefs.getString("selected_daily_mood", "Anxious") ?: "Anxious"
+        val savedMaskStyle = sharedPrefs.getString("hifz_masking_style", null)
+        if (savedMaskStyle != null) {
+            try {
+                memorizationMaskingStyle.value = HifzMaskingStyle.valueOf(savedMaskStyle)
+            } catch (e: Exception) {}
+        }
+        memorizationRepeatCount.value = sharedPrefs.getInt("memorization_repeat_count", 1)
+        memorizationWordRepeatCount.value = sharedPrefs.getInt("hifz_word_repeat_count", 1)
+        memorizationWordDelaySeconds.value = sharedPrefs.getInt("hifz_word_delay_seconds", 1)
+
         viewModelScope.launch {
             val savedCompleted = repository.getCompletedPrayersForFajrDay(selectedPrayerZone.value)
             _completedPrayers.value = savedCompleted
@@ -1877,6 +1957,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Daily Mood & Wisdom Actions
     fun selectMood(mood: String) {
         selectedMood.value = mood
+        sharedPrefs.edit().putString("selected_daily_mood", mood).apply()
     }
 
     fun getCurrentMoodWisdom(): DailyMoodWisdom {
@@ -2586,12 +2667,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setReciter(reciter: Reciter) {
         selectedReciter.value = reciter
+        sharedPrefs.edit().putString("selected_reciter_id", reciter.id).apply()
         triggerHaptic()
     }
 
     fun toggleAudioPlayback(surah: Surah? = null, reciter: Reciter? = null) {
         if (reciter != null && reciter != selectedReciter.value) {
             selectedReciter.value = reciter
+            sharedPrefs.edit().putString("selected_reciter_id", reciter.id).apply()
             val targetSurah = surah ?: currentPlayingSurah.value
             playSurahAudio(targetSurah, openPlayer = false)
             return
@@ -2719,8 +2802,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun playPreviousAyah() = playPreviousSurah()
 
     fun toggleRepeatMode() {
-        isAudioRepeatOne.value = !isAudioRepeatOne.value
-        showToast(if (isAudioRepeatOne.value) "Repeat Surah: ON" else "Repeat: OFF")
+        val newState = !isAudioRepeatOne.value
+        isAudioRepeatOne.value = newState
+        sharedPrefs.edit().putBoolean("is_audio_repeat_one", newState).apply()
+        showToast(if (newState) "Repeat Surah: ON" else "Repeat: OFF")
+    }
+
+    fun toggleAutoAdvanceAyah(enabled: Boolean? = null) {
+        val newState = enabled ?: !isAutoAdvanceAyah.value
+        isAutoAdvanceAyah.value = newState
+        sharedPrefs.edit().putBoolean("is_auto_advance_ayah", newState).apply()
+        triggerHaptic()
+        showToast(if (newState) "Auto-advance audio enabled" else "Auto-advance audio disabled")
     }
 
     fun setSleepTimer(minutes: Int?) {
@@ -2741,6 +2834,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAudioSpeed(speed: Float) {
         audioPlaybackSpeed.value = speed
+        sharedPrefs.edit().putFloat("audio_playback_speed", speed).apply()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             try {
                 mediaPlayer?.let { mp ->
@@ -2756,6 +2850,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectReciter(reciter: Reciter) {
         selectedReciter.value = reciter
+        sharedPrefs.edit().putString("selected_reciter_id", reciter.id).apply()
         if (isAudioPlaying.value) {
             playSurahAudio(currentPlayingSurah.value, openPlayer = false)
         }
@@ -2995,6 +3090,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setTajweedButtonPosition(position: TajweedButtonPosition) {
         tajweedButtonPosition.value = position
         sharedPrefs.edit().putString("tajweed_btn_position", position.name).apply()
+        triggerHaptic()
+    }
+
+    fun setShowTranslation(enabled: Boolean) {
+        showTranslation.value = enabled
+        sharedPrefs.edit().putBoolean("quran_show_translation", enabled).apply()
+        triggerHaptic()
+    }
+
+    fun setShowTransliteration(enabled: Boolean) {
+        showTransliteration.value = enabled
+        sharedPrefs.edit().putBoolean("quran_show_transliteration", enabled).apply()
         triggerHaptic()
     }
 
@@ -3743,6 +3850,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         sharedPrefs.edit().putInt("hifz_word_repeat_count", safeCount).apply()
         triggerHaptic()
         showToast("Word Repeats: ${safeCount}x per pattern step")
+    }
+
+    fun setWordDelaySeconds(seconds: Int) {
+        val safeSec = seconds.coerceIn(0, 15)
+        memorizationWordDelaySeconds.value = safeSec
+        sharedPrefs.edit().putInt("hifz_word_delay_seconds", safeSec).apply()
+        triggerHaptic()
     }
 
     fun playWordRangeDrill(
