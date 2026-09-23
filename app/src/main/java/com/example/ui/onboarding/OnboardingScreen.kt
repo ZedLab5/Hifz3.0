@@ -277,7 +277,7 @@ fun OnboardingScreen(
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(50))
-                                    .clickable { onSkip() }
+                                    .clickable { advanceToNextOrFinish() }
                                     .padding(horizontal = 12.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
