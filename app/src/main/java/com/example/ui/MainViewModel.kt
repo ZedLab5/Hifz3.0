@@ -473,18 +473,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     fun t(key: String): String = com.example.data.localization.AppStrings.get(key, appLanguage.value)
-    val morningEveningAzkarNotification = MutableStateFlow(
-        try { sharedPrefs.getBoolean("morning_evening_azkar_notification", true) } catch (e: Exception) { true }
-    )
-    val dailyAyahNotification = MutableStateFlow(
-        try { sharedPrefs.getBoolean("daily_ayah_notification", true) } catch (e: Exception) { true }
-    )
-    val qazaReminderNotification = MutableStateFlow(
-        try { sharedPrefs.getBoolean("qaza_reminder_notification", true) } catch (e: Exception) { true }
-    )
-    val vibrationOnAdhan = MutableStateFlow(
-        try { sharedPrefs.getBoolean("vibration_on_adhan", true) } catch (e: Exception) { true }
-    )
     val adhanSoundVolume = MutableStateFlow(sharedPrefs.getInt("adhan_volume", 85))
 
     val globalAdhanSoundId = MutableStateFlow(
@@ -535,38 +523,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         triggerHaptic()
         showToast(if (isArabic) "تم تغيير لغة التطبيق إلى العربية" else "App language set to $language")
-    }
-
-    fun toggleMorningEveningAzkarNotification() {
-        val newState = !morningEveningAzkarNotification.value
-        morningEveningAzkarNotification.value = newState
-        sharedPrefs.edit().putBoolean("morning_evening_azkar_notification", newState).apply()
-        triggerHaptic()
-        showToast(if (newState) "Daily Azkar reminders enabled" else "Daily Azkar reminders disabled")
-    }
-
-    fun toggleDailyAyahNotification() {
-        val newState = !dailyAyahNotification.value
-        dailyAyahNotification.value = newState
-        sharedPrefs.edit().putBoolean("daily_ayah_notification", newState).apply()
-        triggerHaptic()
-        showToast(if (newState) "Daily Ayah notifications enabled" else "Daily Ayah notifications disabled")
-    }
-
-    fun toggleQazaReminderNotification() {
-        val newState = !qazaReminderNotification.value
-        qazaReminderNotification.value = newState
-        sharedPrefs.edit().putBoolean("qaza_reminder_notification", newState).apply()
-        triggerHaptic()
-        showToast(if (newState) "Qaza prayer reminders enabled" else "Qaza prayer reminders disabled")
-    }
-
-    fun toggleVibrationOnAdhan() {
-        val newState = !vibrationOnAdhan.value
-        vibrationOnAdhan.value = newState
-        sharedPrefs.edit().putBoolean("vibration_on_adhan", newState).apply()
-        triggerHaptic()
-        showToast(if (newState) "Adhan vibration enabled" else "Adhan vibration disabled")
     }
 
     fun setAdhanSoundVolume(volume: Int) {
@@ -1640,9 +1596,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val savedFontId = sharedPrefs.getString("quran_arabic_font", QuranArabicFont.AMIRI.id)
         selectedArabicFont.value = QuranArabicFont.fromId(savedFontId)
 
-        val isLocConfigured = sharedPrefs.getBoolean("is_location_configured", false)
-        isLocationConfigured.value = isLocConfigured
         val savedZoneId = sharedPrefs.getString("selected_prayer_zone_id", null)
+        var isLocConfigured = sharedPrefs.getBoolean("is_location_configured", false)
+        if (!isLocConfigured && savedZoneId != null) {
+            isLocConfigured = true
+            sharedPrefs.edit().putBoolean("is_location_configured", true).apply()
+        }
+        isLocationConfigured.value = isLocConfigured
         if (isLocConfigured && savedZoneId != null) {
             val foundZone = repository.prayerZones.find { it.id == savedZoneId }
             if (foundZone != null) {

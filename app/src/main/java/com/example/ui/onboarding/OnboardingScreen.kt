@@ -52,7 +52,7 @@ private val TextSecondaryLight = Color(0xFF5F5E5A)
 
 /**
  * Creative, highly polished 4-page onboarding walkthrough for Noor.
- * - Skip button advances screen-by-screen (does not exit entire flow prematurely).
+ * - Skip button exits onboarding flow directly on pages 1-3.
  * - Language picker floats in a non-disruptive Dropdown overlay above the screen.
  * - Notifications and Location permissions are completely separate, dedicated cards.
  * - Interactive live theme switcher with instant visual try-on.
@@ -267,38 +267,36 @@ fun OnboardingScreen(
                         )
                     }
 
-                    // Skip button: Only skips current screen!
-                    Surface(
-                        modifier = Modifier.align(if (isArabic) Alignment.CenterStart else Alignment.CenterEnd),
-                        shape = RoundedCornerShape(50),
-                        color = Color.Transparent
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .clickable { advanceToNextOrFinish() }
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    // Skip button: Exits onboarding flow directly (visible on pages 1-3 only)
+                    if (pagerState.currentPage < 3) {
+                        Surface(
+                            modifier = Modifier.align(if (isArabic) Alignment.CenterStart else Alignment.CenterEnd),
+                            shape = RoundedCornerShape(50),
+                            color = Color.Transparent
                         ) {
-                            Text(
-                                text = if (pagerState.currentPage == 3) {
-                                    if (isArabic) "إنهاء" else "Finish"
-                                } else {
-                                    if (isArabic) "تخطي الخطوة" else "Skip Step"
-                                },
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = dynamicPalette.accent,
-                                    fontSize = 13.sp
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .clickable { onSkip() }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isArabic) "تخطي" else "Skip",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = dynamicPalette.accent,
+                                        fontSize = 13.sp
+                                    )
                                 )
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = dynamicPalette.accent,
-                                modifier = Modifier.size(14.dp)
-                            )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = dynamicPalette.accent,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                         }
                     }
                 }

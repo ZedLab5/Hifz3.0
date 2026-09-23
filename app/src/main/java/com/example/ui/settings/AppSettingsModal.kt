@@ -150,12 +150,8 @@ fun AppSettingsScreen(
     val isArabic = appLanguage.equals("Arabic", ignoreCase = true) ||
             appLanguage == "العربية" ||
             appLanguage.startsWith("ar", ignoreCase = true)
-    val morningAzkarNotif by viewModel.morningEveningAzkarNotification.collectAsStateWithLifecycle()
-    val dailyAyahNotif by viewModel.dailyAyahNotification.collectAsStateWithLifecycle()
-    val qazaNotif by viewModel.qazaReminderNotification.collectAsStateWithLifecycle()
     val activeSpiritualNotifs by viewModel.activeSpiritualRemindersCount.collectAsStateWithLifecycle()
     val isStreakTrackingEnabled by viewModel.isStreakTrackingEnabled.collectAsStateWithLifecycle()
-    val vibrateAdhan by viewModel.vibrationOnAdhan.collectAsStateWithLifecycle()
     val adhanVolume by viewModel.adhanSoundVolume.collectAsStateWithLifecycle()
     val isDndReadingEnabled by viewModel.isDndReadingEnabled.collectAsStateWithLifecycle()
 
@@ -442,52 +438,7 @@ fun AppSettingsScreen(
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
 
-                        // 1. Azkar Notifications
-                        SettingsToggleRow(
-                            icon = Icons.Default.WbSunny,
-                            title = stringResource(R.string.settings_notif_azkar),
-                            subtitle = stringResource(R.string.settings_notif_azkar_desc),
-                            checked = morningAzkarNotif,
-                            onCheckedChange = { viewModel.toggleMorningEveningAzkarNotification() },
-                            themeColors = themeColors
-                        )
-
-                        HorizontalDivider(
-                            color = (if (isDarkMode) themeColors.border else SalatDivider).copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-
-                        // 2. Daily Ayah Reminder
-                        SettingsToggleRow(
-                            icon = Icons.Default.MenuBook,
-                            title = stringResource(R.string.settings_notif_daily_ayah),
-                            subtitle = stringResource(R.string.settings_notif_ayah_desc),
-                            checked = dailyAyahNotif,
-                            onCheckedChange = { viewModel.toggleDailyAyahNotification() },
-                            themeColors = themeColors
-                        )
-
-                        HorizontalDivider(
-                            color = (if (isDarkMode) themeColors.border else SalatDivider).copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-
-                        // 3. Qaza Prayer Reminder
-                        SettingsToggleRow(
-                            icon = Icons.Default.Schedule,
-                            title = stringResource(R.string.settings_notif_qaza),
-                            subtitle = stringResource(R.string.settings_notif_qaza_desc),
-                            checked = qazaNotif,
-                            onCheckedChange = { viewModel.toggleQazaReminderNotification() },
-                            themeColors = themeColors
-                        )
-
-                        HorizontalDivider(
-                            color = (if (isDarkMode) themeColors.border else SalatDivider).copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-
-                        // 4. Spiritual Streaks & Consistency Reminders
+                        // Spiritual Streaks & Consistency Reminders
                         SettingsToggleRow(
                             icon = Icons.Default.Timeline,
                             title = if (isArabic) "سلسلة الالتزام والنشاط اليومي" else "Spiritual Streaks & Consistency",
@@ -502,22 +453,7 @@ fun AppSettingsScreen(
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
 
-                        // 5. Vibration on Adhan
-                        SettingsToggleRow(
-                            icon = Icons.Default.Vibration,
-                            title = stringResource(R.string.settings_notif_vibrate_adhan),
-                            subtitle = stringResource(R.string.settings_notif_vibrate_desc),
-                            checked = vibrateAdhan,
-                            onCheckedChange = { viewModel.toggleVibrationOnAdhan() },
-                            themeColors = themeColors
-                        )
-
-                        HorizontalDivider(
-                            color = (if (isDarkMode) themeColors.border else SalatDivider).copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-
-                        // 5. Adhan Sound Volume
+                        // Adhan Sound Volume
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()

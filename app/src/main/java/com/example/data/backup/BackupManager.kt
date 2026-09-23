@@ -114,7 +114,9 @@ object BackupManager {
         "tasbih_visual_theme",
         "tasbih_marble_style",
         "tasbih_transliteration_visible",
-        "tasbih_translation_visible"
+        "tasbih_translation_visible",
+        "selected_prayer_zone_id",
+        "is_location_configured"
     )
 
     private val USER_DATA_EXPLICIT_KEYS = setOf(

@@ -11,7 +11,11 @@ object AlarmRescheduler {
     fun rescheduleFromSavedSettings(context: Context) {
         try {
             val prefs = context.getSharedPreferences("noor_app_preferences", Context.MODE_PRIVATE)
-            val isLocationConfigured = prefs.getBoolean("is_location_configured", false)
+            var isLocationConfigured = prefs.getBoolean("is_location_configured", false)
+            if (!isLocationConfigured && prefs.getString("selected_prayer_zone_id", null) != null) {
+                isLocationConfigured = true
+                prefs.edit().putBoolean("is_location_configured", true).apply()
+            }
             if (!isLocationConfigured) {
                 PrayerAlarmScheduler.cancelAll(context)
                 return

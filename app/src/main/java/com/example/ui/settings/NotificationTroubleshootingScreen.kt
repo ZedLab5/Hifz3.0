@@ -371,7 +371,7 @@ fun NotificationTroubleshootingScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (isArabic) "مركز الإشعارات والتنبيهات" else "Notification Center Hub",
+                                text = if (isArabic) "مركز التذكيرات والورد اليومي" else "Spiritual & Azkar Reminders Hub",
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = if (isDark) Color.White else Color(0xFF1F1F1F),
@@ -380,7 +380,7 @@ fun NotificationTroubleshootingScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (isArabic) "تخصيص أصوات الأذان وتنبيهات الصلوات والأذكار ومستويات الصوت." else "Customize athan reciters, prayer alerts, morning & evening azkar, and volume levels.",
+                                text = if (isArabic) "جدولة وتخصيص أوقات أذكار الصباح والمساء، ورد القرآن، النوافل، وسلسلة الالتزام." else "Schedule and customize exact times for Morning & Evening Azkar, Quran targets, Sunnah prayers, and daily habits.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF5F5E5A),
                                     fontSize = 11.5.sp,
