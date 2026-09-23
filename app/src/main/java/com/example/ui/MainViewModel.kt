@@ -13,6 +13,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
 import com.example.data.local.DailyHabitEntity
+import com.example.data.local.QuranReadingSessionEntity
 import com.example.data.local.FastLogEntity
 import com.example.data.local.FavoriteItemEntity
 import com.example.data.local.KhatmaHistoryEntity
@@ -148,6 +149,171 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         tasbihDao = db.tasbihDao(),
         prayerDao = db.prayerDao()
     )
+
+    // Quran Reading Timer States
+    private val _quranTimerActive = MutableStateFlow(false)
+    val quranTimerActive: StateFlow<Boolean> = _quranTimerActive.asStateFlow()
+
+    private val _quranTimerRemaining = MutableStateFlow(0)
+    val quranTimerRemaining: StateFlow<Int> = _quranTimerRemaining.asStateFlow()
+
+    private val _quranTimerTarget = MutableStateFlow(0)
+    val quranTimerTarget: StateFlow<Int> = _quranTimerTarget.asStateFlow()
+
+    private val _quranTimerPaused = MutableStateFlow(false)
+    val quranTimerPaused: StateFlow<Boolean> = _quranTimerPaused.asStateFlow()
+
+    private val _showQuranTimerCelebration = MutableStateFlow<Int?>(null)
+    val showQuranTimerCelebration: StateFlow<Int?> = _showQuranTimerCelebration.asStateFlow()
+
+    private var quranTimerJob: Job? = null
+
+    val quranDestinations = setOf(
+        NoorDestination.QURAN_SURAH_LIST,
+        NoorDestination.QURAN_READER,
+        NoorDestination.QURAN_MEMORIZATION_SETUP,
+        NoorDestination.QURAN_MEMORIZATION,
+        NoorDestination.QURAN_AUDIO_STREAM,
+        NoorDestination.QURAN_RECITERS,
+        NoorDestination.QURAN_KHATMA
+    )
+
+    private val _pendingTimerExitDestination = MutableStateFlow<NoorDestination?>(null)
+    val pendingTimerExitDestination: StateFlow<NoorDestination?> = _pendingTimerExitDestination.asStateFlow()
+
+    private val _showQuranTimerExitConfirmation = MutableStateFlow(false)
+    val showQuranTimerExitConfirmation: StateFlow<Boolean> = _showQuranTimerExitConfirmation.asStateFlow()
+
+    fun dismissTimerExitConfirmation() {
+        _pendingTimerExitDestination.value = null
+        _showQuranTimerExitConfirmation.value = false
+    }
+
+    fun confirmTimerExit() {
+        val target = _pendingTimerExitDestination.value ?: NoorDestination.HOME
+        _pendingTimerExitDestination.value = null
+        _showQuranTimerExitConfirmation.value = false
+        
+        cancelQuranTimer()
+        
+        if (_currentDestination.value != target) {
+            navigationStack.add(_currentDestination.value)
+            _currentDestination.value = target
+        }
+    }
+
+    fun startQuranTimer(minutes: Int) {
+        quranTimerJob?.cancel()
+        val targetSecs = minutes * 60
+        _quranTimerTarget.value = targetSecs
+        _quranTimerRemaining.value = targetSecs
+        _quranTimerActive.value = true
+        _quranTimerPaused.value = false
+        _showQuranTimerCelebration.value = null
+
+        startTimerJob()
+    }
+
+    fun startQuranTimerSeconds(seconds: Int) {
+        quranTimerJob?.cancel()
+        _quranTimerTarget.value = seconds
+        _quranTimerRemaining.value = seconds
+        _quranTimerActive.value = true
+        _quranTimerPaused.value = false
+        _showQuranTimerCelebration.value = null
+
+        startTimerJob()
+    }
+
+    private fun startTimerJob() {
+        quranTimerJob = viewModelScope.launch {
+            while (isActive && _quranTimerRemaining.value > 0) {
+                delay(1000)
+                if (!_quranTimerPaused.value) {
+                    _quranTimerRemaining.value = (_quranTimerRemaining.value - 1).coerceAtLeast(0)
+                    if (_quranTimerRemaining.value == 0) {
+                        onQuranTimerCompleted()
+                    }
+                }
+            }
+        }
+    }
+
+    fun pauseQuranTimer() {
+        _quranTimerPaused.value = true
+    }
+
+    fun resumeQuranTimer() {
+        _quranTimerPaused.value = false
+    }
+
+    fun cancelQuranTimer() {
+        quranTimerJob?.cancel()
+        quranTimerJob = null
+
+        val elapsed = _quranTimerTarget.value - _quranTimerRemaining.value
+        val target = _quranTimerTarget.value
+
+        _quranTimerActive.value = false
+        _quranTimerPaused.value = false
+        _quranTimerRemaining.value = 0
+
+        if (elapsed > 0) {
+            viewModelScope.launch {
+                repository.saveQuranReadingSession(
+                    QuranReadingSessionEntity(
+                        date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+                        targetSeconds = target,
+                        elapsedSeconds = elapsed,
+                        completed = false
+                    )
+                )
+            }
+        }
+    }
+
+    fun dismissQuranTimerCelebration() {
+        _showQuranTimerCelebration.value = null
+    }
+
+    private fun onQuranTimerCompleted() {
+        quranTimerJob?.cancel()
+        quranTimerJob = null
+
+        val target = _quranTimerTarget.value
+        val completedMinutes = (target + 59) / 60
+
+        _quranTimerActive.value = false
+        _quranTimerPaused.value = false
+        _quranTimerRemaining.value = 0
+
+        triggerHaptic()
+        playCompletionSound()
+
+        _showQuranTimerCelebration.value = completedMinutes
+
+        viewModelScope.launch {
+            repository.recordQuranActivity()
+            repository.saveQuranReadingSession(
+                QuranReadingSessionEntity(
+                    date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+                    targetSeconds = target,
+                    elapsedSeconds = target,
+                    completed = true
+                )
+            )
+        }
+    }
+
+    private fun playCompletionSound() {
+        try {
+            val notificationUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+            val ringtone = android.media.RingtoneManager.getRingtone(getApplication(), notificationUri)
+            ringtone.play()
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "Failed to play completion sound", e)
+        }
+    }
     private val sharedPrefs = application.getSharedPreferences("noor_app_preferences", Context.MODE_PRIVATE)
 
     // Navigation Destination
@@ -158,6 +324,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val navigationStack = mutableListOf<NoorDestination>()
 
     fun navigateTo(dest: NoorDestination) {
+        if (_quranTimerActive.value && quranDestinations.contains(_currentDestination.value) && !quranDestinations.contains(dest)) {
+            _pendingTimerExitDestination.value = dest
+            _showQuranTimerExitConfirmation.value = true
+            return
+        }
+
         if (_currentDestination.value == NoorDestination.QURAN_READER && dest != NoorDestination.QURAN_READER) {
             if (isAyahAudioMode.value) {
                 stopAudio()
@@ -175,6 +347,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 stopAudio()
             }
         }
+
+        if (_quranTimerActive.value && quranDestinations.contains(_currentDestination.value)) {
+            val targetDest = if (navigationStack.isNotEmpty()) navigationStack.last() else NoorDestination.HOME
+            if (!quranDestinations.contains(targetDest)) {
+                _pendingTimerExitDestination.value = targetDest
+                _showQuranTimerExitConfirmation.value = true
+                return false
+            }
+        }
+
         return if (navigationStack.isNotEmpty()) {
             _currentDestination.value = navigationStack.removeAt(navigationStack.lastIndex)
             true
@@ -4661,6 +4843,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.updateHabitProgress(habit, habit.currentCount + 1)
             triggerHaptic()
+        }
+    }
+
+    fun markHabitDone(habit: DailyHabitEntity) {
+        viewModelScope.launch {
+            repository.updateHabitProgress(habit, habit.targetCount)
+            triggerHaptic()
+            showToast("Goal marked as done!")
         }
     }
 

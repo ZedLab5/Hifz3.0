@@ -2,20 +2,20 @@ package com.example.ui.quran
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,12 +24,12 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -38,9 +38,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -48,6 +45,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.ReadingThemeColors
+
+enum class QuranBottomBarMode {
+    DEFAULT,
+    AUTO_SCROLL
+}
 
 @Composable
 fun QuranBottomBar(
@@ -64,9 +66,11 @@ fun QuranBottomBar(
     onToggleAudio: () -> Unit,
     isMushafMode: Boolean,
     onToggleMushafMode: () -> Unit,
-    onOpenTextSettings: () -> Unit,
     onOpenNotes: () -> Unit,
     notesCount: Int = 0,
+    isTimerActive: Boolean = false,
+    timerRemainingSeconds: Int = 0,
+    onOpenTimer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -76,35 +80,40 @@ fun QuranBottomBar(
             .navigationBarsPadding(),
         contentAlignment = Alignment.Center
     ) {
+        val targetMode = if (isAutoScrolling) QuranBottomBarMode.AUTO_SCROLL else QuranBottomBarMode.DEFAULT
+
         Crossfade(
-            targetState = isAutoScrolling,
+            targetState = targetMode,
             animationSpec = tween(150),
             label = "QuranBottomBarContent"
-        ) { autoScrolling ->
-            if (autoScrolling) {
-                // Secondary Control Row: Expanded Auto-Scroll Controls
-                AutoScrollControlRow(
-                    themeColors = themeColors,
-                    isPaused = isAutoScrollPaused,
-                    speed = autoScrollSpeed,
-                    onTogglePlayPause = onToggleAutoScrollPlayPause,
-                    onExit = onExitAutoScroll,
-                    onDecreaseSpeed = onSpeedDecrease,
-                    onIncreaseSpeed = onSpeedIncrease
-                )
-            } else {
-                // Default 5-Icon Bar: Auto-Scroll, Audio, Mushaf, Text, Notes
-                DefaultQuranBottomNavRow(
-                    themeColors = themeColors,
-                    onStartAutoScroll = onStartAutoScroll,
-                    isAudioPlaying = isAudioPlaying,
-                    onToggleAudio = onToggleAudio,
-                    isMushafMode = isMushafMode,
-                    onToggleMushafMode = onToggleMushafMode,
-                    onOpenTextSettings = onOpenTextSettings,
-                    onOpenNotes = onOpenNotes,
-                    notesCount = notesCount
-                )
+        ) { currentMode ->
+            when (currentMode) {
+                QuranBottomBarMode.AUTO_SCROLL -> {
+                    AutoScrollControlRow(
+                        themeColors = themeColors,
+                        isPaused = isAutoScrollPaused,
+                        speed = autoScrollSpeed,
+                        onTogglePlayPause = onToggleAutoScrollPlayPause,
+                        onExit = onExitAutoScroll,
+                        onDecreaseSpeed = onSpeedDecrease,
+                        onIncreaseSpeed = onSpeedIncrease
+                    )
+                }
+                QuranBottomBarMode.DEFAULT -> {
+                    DefaultQuranBottomNavRow(
+                        themeColors = themeColors,
+                        onStartAutoScroll = onStartAutoScroll,
+                        isAudioPlaying = isAudioPlaying,
+                        onToggleAudio = onToggleAudio,
+                        isMushafMode = isMushafMode,
+                        onToggleMushafMode = onToggleMushafMode,
+                        onOpenNotes = onOpenNotes,
+                        notesCount = notesCount,
+                        isTimerActive = isTimerActive,
+                        timerRemainingSeconds = timerRemainingSeconds,
+                        onOpenTimer = onOpenTimer
+                    )
+                }
             }
         }
     }
@@ -118,17 +127,19 @@ private fun DefaultQuranBottomNavRow(
     onToggleAudio: () -> Unit,
     isMushafMode: Boolean,
     onToggleMushafMode: () -> Unit,
-    onOpenTextSettings: () -> Unit,
     onOpenNotes: () -> Unit,
-    notesCount: Int
+    notesCount: Int,
+    isTimerActive: Boolean,
+    timerRemainingSeconds: Int,
+    onOpenTimer: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 8.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 1. Mushaf Mode (Left)
+        // 1. Mushaf Mode (Far Left)
         QuranNavItem(
             icon = Icons.AutoMirrored.Filled.MenuBook,
             label = "Mushaf",
@@ -138,7 +149,7 @@ private fun DefaultQuranBottomNavRow(
             onClick = onToggleMushafMode
         )
 
-        // 2. Scroll (Left of Center)
+        // 2. Scroll
         QuranNavItem(
             icon = Icons.Default.KeyboardDoubleArrowDown,
             label = "Scroll",
@@ -148,7 +159,7 @@ private fun DefaultQuranBottomNavRow(
             onClick = onStartAutoScroll
         )
 
-        // 3. Audio / Play - DEAD CENTER
+        // 3. Audio / Play
         QuranNavItem(
             icon = if (isAudioPlaying) Icons.Default.Pause else Icons.Default.Headphones,
             label = if (isAudioPlaying) "Pause" else "Audio",
@@ -158,17 +169,25 @@ private fun DefaultQuranBottomNavRow(
             onClick = onToggleAudio
         )
 
-        // 4. Text (size / typography - Right of Center)
+        // 4. Timer (Countdown text MM:SS shown under this same icon when active)
+        val timerLabel = if (isTimerActive) {
+            val minutes = timerRemainingSeconds / 60
+            val seconds = timerRemainingSeconds % 60
+            String.format("%02d:%02d", minutes, seconds)
+        } else {
+            "Timer"
+        }
+
         QuranNavItem(
-            icon = Icons.Default.FormatSize,
-            label = "Text",
-            isActive = false,
+            icon = Icons.Default.Timer,
+            label = timerLabel,
+            isActive = isTimerActive,
             themeColors = themeColors,
-            testTag = "quran_bottom_nav_text",
-            onClick = onOpenTextSettings
+            testTag = "quran_bottom_nav_timer",
+            onClick = onOpenTimer
         )
 
-        // 5. Notes (Right)
+        // 5. Notes (Far Right)
         QuranNavItem(
             icon = Icons.Default.EditNote,
             label = "Notes",
@@ -227,9 +246,9 @@ private fun RowScope.QuranNavItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = if (isActive) FontWeight.Bold else Modifier.padding(0.dp).let { FontWeight.Medium },
                 color = if (isActive) activeColor else inactiveColor,
-                fontSize = 10.5.sp
+                fontSize = 10.sp
             ),
             maxLines = 1
         )
@@ -354,7 +373,7 @@ private fun AutoScrollControlRow(
             }
         }
 
-        // Far Right: Exit Button (stops auto-scroll, returns to 5-icon bar)
+        // Far Right: Exit Button (stops auto-scroll, returns to default row)
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = themeColors.background,

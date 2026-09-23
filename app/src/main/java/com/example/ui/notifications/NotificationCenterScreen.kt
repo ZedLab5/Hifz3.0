@@ -889,6 +889,22 @@ fun NotificationCenterScreen(
                         viewModel.updateSpiritualReminderTime(item.id, newHour, newMinute)
                     }
                 )
+
+                if (item.id == "tahajjud_qiyam") {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    QiyamReminderOffsetSection(
+                        viewModel = viewModel,
+                        isArabic = isArabic,
+                        isDarkMode = isDarkMode,
+                        cardBg = cardBg,
+                        cardBorder = cardBorder,
+                        primaryTeal = primaryTeal,
+                        tealTintBg = tealTintBg,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        softNavyPillBg = softNavyPillBg
+                    )
+                }
             }
 
             // Bottom Helpful Note Card
@@ -1257,6 +1273,116 @@ private fun ReminderTimePickerDialog(
                             text = if (isArabic) "تأكيد" else "Confirm",
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QiyamReminderOffsetSection(
+    viewModel: com.example.ui.MainViewModel,
+    isArabic: Boolean,
+    isDarkMode: Boolean,
+    cardBg: Color,
+    cardBorder: Color,
+    primaryTeal: Color,
+    tealTintBg: Color,
+    textPrimary: Color,
+    textSecondary: Color,
+    softNavyPillBg: Color
+) {
+    val qiyamOffset by viewModel.qiyamReminderOffsetMinutes.collectAsStateWithLifecycle()
+    val offsetAbs = Math.abs(qiyamOffset)
+    val timeLabel = if (qiyamOffset <= 0) "$offsetAbs min before Fajr" else "$offsetAbs min after Fajr"
+    val timeLabelAr = if (qiyamOffset <= 0) "قبل الفجر بـ $offsetAbs دقيقة" else "بعد الفجر بـ $offsetAbs دقيقة"
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = cardBg,
+        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isArabic) "تعديل تنبيه قيام الليل" else "Tahajjud Reminder Offset",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = textPrimary
+                        )
+                    )
+                    Text(
+                        text = if (isArabic) "ضبط موعد تنبيه قيام الليل بالنسبة لصلاة الفجر ($timeLabelAr)" else "Adjust Tahajjud reminder time relative to Fajr ($timeLabel)",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = textSecondary,
+                            fontSize = 11.5.sp
+                        )
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = primaryTeal.copy(alpha = 0.12f),
+                    border = null,
+                    modifier = Modifier.clickable { viewModel.resetQiyamOffset() }
+                ) {
+                    Text(
+                        text = if (isArabic) "إعادة ضبط" else "Reset",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = primaryTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        ),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
+                }
+            }
+
+            // Adjustment pill buttons (-15m, -5m, +5m, +15m)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf(-15, -5, 5, 15).forEach { delta ->
+                    val label = if (delta > 0) "+${delta}m" else "${delta}m"
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.updateQiyamOffset(delta) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = softNavyPillBg,
+                        border = null
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = textPrimary,
+                                    fontSize = 12.sp
+                                )
+                            )
+                        }
                     }
                 }
             }

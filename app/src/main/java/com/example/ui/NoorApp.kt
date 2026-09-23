@@ -167,6 +167,7 @@ fun NoorApp(
     val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
     val appThemeMode by viewModel.appThemeMode.collectAsStateWithLifecycle()
     val isSettingsOpen by viewModel.isSettingsModalOpen.collectAsStateWithLifecycle()
+    val showTimerExitConfirmation by viewModel.showQuranTimerExitConfirmation.collectAsStateWithLifecycle()
 
     val navSurface = when (appThemeMode) {
         AppThemeMode.LIGHT -> SurfaceWhite
@@ -649,6 +650,98 @@ fun NoorApp(
         com.example.ui.components.BatteryOptimizationPromptDialog(
             onDismiss = { showBatteryPrompt = false }
         )
+    }
+
+    if (showTimerExitConfirmation) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { viewModel.dismissTimerExitConfirmation() }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                tonalElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(Color(0xFFFBF0DC), CircleShape), // Warm Amber/Gold tint
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Pause,
+                            contentDescription = "Warning",
+                            tint = Color(0xFFC68A00), // Gold
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Session Incomplete",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F1F1F)
+                        )
+                    )
+
+                    Text(
+                        text = "You haven't finished your Quran reading session yet. Would you like to keep reading to complete your goal, or finish later?",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = Color(0xFF5F5E5A),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Finish Later
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { viewModel.confirmTimerExit() },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFECEFF1)),
+                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF2A4365) // Soft Navy
+                            ),
+                            modifier = Modifier.weight(1.2f)
+                        ) {
+                            Text(
+                                text = "Finish Later",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                maxLines = 1
+                            )
+                        }
+
+                        // Continue Reading
+                        androidx.compose.material3.Button(
+                            onClick = { viewModel.dismissTimerExitConfirmation() },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF1BA486), // Primary Teal
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Continue",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
             }
         }

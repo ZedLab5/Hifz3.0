@@ -224,4 +224,17 @@ interface NoorDao {
 
     @Query("DELETE FROM hifz_events")
     suspend fun clearAllHifzEvents()
+
+    // Quran Reading Sessions
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertQuranReadingSession(session: QuranReadingSessionEntity): Long
+
+    @Query("SELECT SUM(elapsedSeconds) FROM quran_reading_sessions WHERE date = :date")
+    fun getQuranReadingTimeForDay(date: String): Flow<Int?>
+
+    @Query("SELECT SUM(elapsedSeconds) FROM quran_reading_sessions WHERE date BETWEEN :startDate AND :endDate")
+    fun getQuranReadingTimeInRange(startDate: String, endDate: String): Flow<Int?>
+
+    @Query("SELECT SUM(elapsedSeconds) FROM quran_reading_sessions")
+    fun getTotalQuranReadingTime(): Flow<Int?>
 }

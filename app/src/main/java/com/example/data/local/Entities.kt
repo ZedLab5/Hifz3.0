@@ -200,5 +200,16 @@ data class QuranBookmarkEntity(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "quran_reading_sessions")
+data class QuranReadingSessionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val date: String,          // "YYYY-MM-DD"
+    val targetSeconds: Int,
+    val elapsedSeconds: Int,
+    val completed: Boolean,
+    val startedAt: Long = System.currentTimeMillis()
+)
+
+
 
 

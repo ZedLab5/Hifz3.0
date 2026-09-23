@@ -12,6 +12,7 @@ import com.example.data.local.QadaRecordEntity
 import com.example.data.local.QuranBookmarkDao
 import com.example.data.local.QuranBookmarkEntity
 import com.example.data.local.QuranNoteEntity
+import com.example.data.local.QuranReadingSessionEntity
 import com.example.data.local.ReadingProgressEntity
 import com.example.data.local.StreakDailyLogEntity
 import com.example.data.local.StreakSummaryEntity
@@ -944,5 +945,22 @@ class NoorRepository(
         prayerDao.clearAllQadaRecords()
         tasbihDao.clearAllTasbihRecords()
         quranBookmarkDao.clearAllBookmarks()
+    }
+
+    // Quran Reading Sessions
+    suspend fun saveQuranReadingSession(session: QuranReadingSessionEntity): Long {
+        return dao.insertQuranReadingSession(session)
+    }
+
+    fun getQuranReadingTimeForDay(date: String): Flow<Int?> {
+        return dao.getQuranReadingTimeForDay(date)
+    }
+
+    fun getQuranReadingTimeInRange(startDate: String, endDate: String): Flow<Int?> {
+        return dao.getQuranReadingTimeInRange(startDate, endDate)
+    }
+
+    fun getTotalQuranReadingTime(): Flow<Int?> {
+        return dao.getTotalQuranReadingTime()
     }
 }

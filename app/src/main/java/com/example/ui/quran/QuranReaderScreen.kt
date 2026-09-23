@@ -11,6 +11,12 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -57,7 +63,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -82,6 +90,9 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -224,6 +235,14 @@ fun QuranReaderScreen(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showSearchSheet by remember { mutableStateOf(false) }
     var showTajweedQuickReminder by remember { mutableStateOf(false) }
+
+    val timerActive by viewModel.quranTimerActive.collectAsStateWithLifecycle()
+    val timerRemaining by viewModel.quranTimerRemaining.collectAsStateWithLifecycle()
+    val timerTarget by viewModel.quranTimerTarget.collectAsStateWithLifecycle()
+    val timerPaused by viewModel.quranTimerPaused.collectAsStateWithLifecycle()
+    val showCelebrationMinutes by viewModel.showQuranTimerCelebration.collectAsStateWithLifecycle()
+
+    var showTimerSetupSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val listState = rememberLazyListState()
     val mushafFlowLazyListState = rememberLazyListState()
@@ -731,9 +750,11 @@ fun QuranReaderScreen(
                 },
                 isMushafMode = isMushafFlowMode,
                 onToggleMushafMode = { viewModel.toggleMushafFlowMode() },
-                onOpenTextSettings = { showSettingsSheet = true },
                 onOpenNotes = { showNotesSheet = true },
                 notesCount = quranNotes.size,
+                isTimerActive = timerActive,
+                timerRemainingSeconds = timerRemaining,
+                onOpenTimer = { showTimerSetupSheet = true },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .graphicsLayer {
@@ -1455,6 +1476,37 @@ fun QuranReaderScreen(
                     viewModel.deleteQuranNote(currentSurah.number, target.verseNumber)
                 },
                 onDismiss = { noteTargetVerse = null }
+            )
+        }
+
+        // Quran Reading Timer Setup & Active Bottom Sheet
+        if (showTimerSetupSheet) {
+            QuranTimerBottomSheet(
+                onDismiss = { showTimerSetupSheet = false },
+                isTimerActive = timerActive,
+                isTimerPaused = timerPaused,
+                timerRemainingSeconds = timerRemaining,
+                timerTargetSeconds = timerTarget,
+                onStart = { minutes ->
+                    showTimerSetupSheet = false
+                    viewModel.startQuranTimer(minutes)
+                },
+                onPause = { viewModel.pauseQuranTimer() },
+                onResume = { viewModel.resumeQuranTimer() },
+                onCancel = { viewModel.cancelQuranTimer() },
+                themeColors = sheetThemeColors
+            )
+        }
+
+        // Quran Reading Timer Celebration Dialog
+        if (showCelebrationMinutes != null) {
+            QuranTimerCelebrationDialog(
+                minutes = showCelebrationMinutes!!,
+                onKeepReading = { viewModel.dismissQuranTimerCelebration() },
+                onDone = {
+                    viewModel.dismissQuranTimerCelebration()
+                    viewModel.navigateTo(NoorDestination.HOME)
+                }
             )
         }
     }
@@ -2216,68 +2268,77 @@ fun SurahNavigationFooter(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
                     onClick = onPrevious,
                     enabled = currentSurah.number > 1,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = themeColors.accent
                     ),
-                    border = null
+                    border = BorderStroke(1.dp, themeColors.accent.copy(alpha = 0.3f)),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Previous Surah",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Prev Surah",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                        text = "Prev",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
 
                 Button(
                     onClick = onOpenList,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(50), // Fully rounded edge for the highlighted one
                     colors = ButtonDefaults.buttonColors(
                         containerColor = themeColors.accent,
                         contentColor = Color.White
-                    )
+                    ),
+                    modifier = Modifier.weight(1.2f)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.MenuBook,
                         contentDescription = "All Surahs",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "114 Surahs",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
 
                 OutlinedButton(
                     onClick = onNext,
                     enabled = currentSurah.number < 114,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = themeColors.accent
                     ),
-                    border = null
+                    border = BorderStroke(1.dp, themeColors.accent.copy(alpha = 0.3f)),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "Next Surah",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                        text = "Next",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Next Surah",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
@@ -2509,6 +2570,514 @@ fun QuranNoteEntrySheet(
                     )
                 }
             }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun QuranTimerBottomSheet(
+    onDismiss: () -> Unit,
+    isTimerActive: Boolean,
+    isTimerPaused: Boolean,
+    timerRemainingSeconds: Int,
+    timerTargetSeconds: Int,
+    onStart: (minutes: Int) -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onCancel: () -> Unit,
+    themeColors: ReadingThemeColors
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = themeColors.surface,
+        contentColor = themeColors.arabicText
+    ) {
+        if (isTimerActive) {
+            ActiveTimerMenuContent(
+                themeColors = themeColors,
+                remainingSeconds = timerRemainingSeconds,
+                targetSeconds = timerTargetSeconds,
+                isPaused = isTimerPaused,
+                onPause = onPause,
+                onResume = onResume,
+                onCancel = onCancel,
+                onDismiss = onDismiss
+            )
+        } else {
+            SetupTimerMenuContent(
+                themeColors = themeColors,
+                onStart = onStart
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActiveTimerMenuContent(
+    themeColors: ReadingThemeColors,
+    remainingSeconds: Int,
+    targetSeconds: Int,
+    isPaused: Boolean,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onCancel: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val progress = if (targetSeconds > 0) remainingSeconds.toFloat() / targetSeconds else 0f
+    val minutes = remainingSeconds / 60
+    val seconds = remainingSeconds % 60
+    val timeText = String.format("%02d:%02d", minutes, seconds)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 16.dp, bottom = 48.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Active Reading Session",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = themeColors.arabicText
+            )
+        )
+
+        // Large Progress Ring with countdown
+        Box(
+            modifier = Modifier.size(140.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            com.example.ui.components.RadialProgressRing(
+                progress = progress,
+                strokeWidth = 8.dp,
+                trackColor = themeColors.translationText.copy(alpha = 0.15f),
+                progressGradient = androidx.compose.ui.graphics.SolidColor(themeColors.accent),
+                modifier = Modifier.size(130.dp)
+            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = timeText,
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = themeColors.arabicText,
+                        fontSize = 32.sp
+                    )
+                )
+                Text(
+                    text = if (isPaused) "PAUSED" else "RUNNING",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = if (isPaused) themeColors.translationText else themeColors.accent,
+                        letterSpacing = 1.sp
+                    )
+                )
+            }
+        }
+
+        // Explanation text
+        Text(
+            text = "Focus on reading the Holy Quran. Your progress is being tracked safely.",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = themeColors.translationText,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            ),
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        // Control Buttons (Pause/Resume and Cancel/Stop)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Cancel / Stop Button
+            androidx.compose.material3.OutlinedButton(
+                onClick = {
+                    onCancel()
+                    onDismiss()
+                },
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, themeColors.border.copy(alpha = 0.5f)),
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    contentColor = themeColors.arabicText
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Stop Session",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+
+            // Pause / Resume Button
+            androidx.compose.material3.Button(
+                onClick = { if (isPaused) onPause() else onResume() },
+                shape = RoundedCornerShape(12.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = themeColors.accent,
+                    contentColor = Color.White
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (isPaused) "Resume" else "Pause",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SetupTimerMenuContent(
+    themeColors: ReadingThemeColors,
+    onStart: (minutes: Int) -> Unit
+) {
+    var selectedDuration by remember { mutableStateOf(10) } // 10 mins selected by default
+    var isCustomSelected by remember { mutableStateOf(false) }
+    var customMinutes by remember { mutableStateOf(25) }
+
+    val durations = listOf(5, 10, 15, 20, 30)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 16.dp, bottom = 48.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Reading Timer",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = themeColors.arabicText
+            )
+        )
+
+        // Short explanation text explaining the timer with more padding
+        Text(
+            text = "Set a daily reading goal to build a consistent habit with the Holy Qur'an. A celebratory screen will mark your completion and record your daily streak activity.",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = themeColors.translationText,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            ),
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+
+        // Duration Chips Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            durations.forEach { minutes ->
+                val isSelected = !isCustomSelected && selectedDuration == minutes
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (isSelected) themeColors.accent else themeColors.background,
+                    border = BorderStroke(1.dp, if (isSelected) themeColors.accent else themeColors.border),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            isCustomSelected = false
+                            selectedDuration = minutes
+                        }
+                ) {
+                    Text(
+                        text = "$minutes min",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) Color.White else themeColors.translationText
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+
+            // Custom Chip
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (isCustomSelected) themeColors.accent else themeColors.background,
+                border = BorderStroke(1.dp, if (isCustomSelected) themeColors.accent else themeColors.border),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        isCustomSelected = true
+                    }
+            ) {
+                Text(
+                    text = "Custom",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = if (isCustomSelected) Color.White else themeColors.translationText
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
+
+        // Custom minutes picker if "Custom" is selected
+        if (isCustomSelected) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(vertical = 8.dp)
+            ) {
+                // Minus Button
+                Surface(
+                    shape = CircleShape,
+                    color = themeColors.background,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clickable {
+                            customMinutes = (customMinutes - 1).coerceAtLeast(1)
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Remove,
+                            contentDescription = "Decrease",
+                            tint = themeColors.arabicText
+                        )
+                    }
+                }
+
+                Text(
+                    text = "$customMinutes minutes",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = themeColors.arabicText
+                    )
+                )
+
+                // Plus Button
+                Surface(
+                    shape = CircleShape,
+                    color = themeColors.background,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clickable {
+                            customMinutes = (customMinutes + 1).coerceAtMost(180)
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Increase",
+                            tint = themeColors.arabicText
+                        )
+                    }
+                }
+            }
+        }
+
+        // Start Button
+        androidx.compose.material3.Button(
+            onClick = {
+                val duration = if (isCustomSelected) customMinutes else selectedDuration
+                onStart(duration)
+            },
+            shape = RoundedCornerShape(12.dp),
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = themeColors.accent,
+                contentColor = Color.White
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+        ) {
+            Text(
+                text = "Start Timer",
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+            )
+        }
+    }
+}
+
+@Composable
+fun QuranTimerCelebrationDialog(
+    minutes: Int,
+    onKeepReading: () -> Unit,
+    onDone: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onKeepReading
+    ) {
+        var animatedScale by remember { mutableStateOf(0f) }
+        val scale by animateFloatAsState(
+            targetValue = animatedScale,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            ),
+            label = "scale"
+        )
+        LaunchedEffect(Unit) {
+            animatedScale = 1f
+        }
+
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            tonalElevation = 8.dp
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Background Confetti Burst
+                ConfettiBurst(modifier = Modifier.size(300.dp))
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Springs-in Success Icon
+                    Box(
+                        modifier = Modifier
+                            .graphicsLayer(scaleX = scale, scaleY = scale)
+                            .size(72.dp)
+                            .background(Color(0xFFE6F6F1), CircleShape), // Teal Tint
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = "Success",
+                            tint = Color(0xFF1BA486), // Primary Teal
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Ma'sha'Allah!",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F1F1F) // Soft black primary
+                        )
+                    )
+
+                    Text(
+                        text = "You spent $minutes minutes with the Qur'an today",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = Color(0xFF5F5E5A), // Soft dark gray secondary
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // "Keep Reading"
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = onKeepReading,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFECEFF1)),
+                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF2A4365) // Soft Navy
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Keep Reading",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+
+                        // "Done"
+                        androidx.compose.material3.Button(
+                            onClick = onDone,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF1BA486), // Primary Teal
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Done",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ConfettiBurst(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "confetti")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "progress"
+    )
+
+    val particles = remember {
+        List(40) {
+            val angle = Math.random() * 2 * Math.PI
+            val distance = (30f + Math.random() * 150f).toFloat()
+            val size = (4f + Math.random() * 8f).toFloat()
+            val color = when ((0..2).random()) {
+                0 -> Color(0xFF1BA486) // Primary Teal
+                1 -> Color(0xFF2A4365) // Soft Navy
+                else -> Color(0xFFC68A00) // Gold
+            }
+            Triple(angle, distance, size to color)
+        }
+    }
+
+    Canvas(modifier = modifier) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        particles.forEach { (angle, distance, style) ->
+            val currentDistance = distance * progress
+            val x = center.x + (currentDistance * Math.cos(angle)).toFloat()
+            val y = center.y + (currentDistance * Math.sin(angle)).toFloat()
+            val (pSize, color) = style
+            val alpha = 1f - progress
+            drawCircle(
+                color = color,
+                radius = pSize,
+                center = Offset(x, y),
+                alpha = alpha
+            )
         }
     }
 }

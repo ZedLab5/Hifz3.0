@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -23,6 +25,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -268,14 +274,6 @@ fun HabitTrackerScreen(
                         }
                     }
 
-                    // Adjustable Qiyam / Tahajjud Reminder Offset Card
-                    QiyamReminderCard(
-                        viewModel = viewModel,
-                        themeColors = themeColors,
-                        isDark = isDark,
-                        isLangArabic = isLangArabic
-                    )
-
                     // Habits List
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -284,94 +282,91 @@ fun HabitTrackerScreen(
                         items(habits, key = { it.id }) { habit ->
                             val habitFraction = if (habit.targetCount > 0) (habit.currentCount.toFloat() / habit.targetCount.toFloat()).coerceIn(0f, 1f) else 0f
 
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .clickable { viewModel.incrementHabit(habit) },
-                                color = themeColors.surface,
-                                border = null,
-                                shape = RoundedCornerShape(16.dp)
+                            SwipeableHabitRow(
+                                habit = habit,
+                                themeColors = themeColors,
+                                isDark = isDark,
+                                onMarkAsDone = { viewModel.markHabitDone(habit) },
+                                onDelete = { viewModel.deleteHabit(habit) }
                             ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .clickable { viewModel.incrementHabit(habit) },
+                                    color = themeColors.surface,
+                                    border = null,
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
                                         Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .clip(CircleShape)
-                                                    .background(if (isDark) themeColors.accent.copy(alpha = 0.18f) else SurfaceElevatedLight),
-                                                contentAlignment = Alignment.Center
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                                             ) {
-                                                Icon(
-                                                    imageVector = if (habit.isCompleted) Icons.Default.Check else Icons.Default.Star,
-                                                    contentDescription = "Icon",
-                                                    tint = if (habit.isCompleted) themeColors.arabicText else themeColors.accent,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .clip(CircleShape)
+                                                        .background(if (isDark) themeColors.accent.copy(alpha = 0.18f) else SurfaceElevatedLight),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (habit.isCompleted) Icons.Default.Check else Icons.Default.Star,
+                                                        contentDescription = "Icon",
+                                                        tint = if (habit.isCompleted) themeColors.arabicText else themeColors.accent,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+
+                                                Column {
+                                                    Text(
+                                                        text = habit.title,
+                                                        style = MaterialTheme.typography.titleSmall.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = themeColors.arabicText
+                                                        )
+                                                    )
+                                                    Text(
+                                                        text = "${habit.category} • Swipe right to complete, left to delete",
+                                                        style = MaterialTheme.typography.bodySmall.copy(
+                                                            color = themeColors.translationText,
+                                                            fontSize = 11.sp
+                                                        )
+                                                    )
+                                                }
                                             }
 
-                                            Column {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
                                                 Text(
-                                                    text = habit.title,
+                                                    text = "${habit.currentCount}/${habit.targetCount}",
                                                     style = MaterialTheme.typography.titleSmall.copy(
                                                         fontWeight = FontWeight.Bold,
-                                                        color = themeColors.arabicText
-                                                    )
-                                                )
-                                                Text(
-                                                    text = "${habit.category} • Tap to +1 count",
-                                                    style = MaterialTheme.typography.bodySmall.copy(
-                                                        color = themeColors.translationText,
-                                                        fontSize = 11.sp
+                                                        color = themeColors.accent
                                                     )
                                                 )
                                             }
                                         }
 
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Text(
-                                                text = "${habit.currentCount}/${habit.targetCount}",
-                                                style = MaterialTheme.typography.titleSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = themeColors.accent
-                                                )
-                                            )
-                                            IconButton(
-                                                onClick = { viewModel.deleteHabit(habit) },
-                                                modifier = Modifier.size(28.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.DeleteOutline,
-                                                    contentDescription = "Delete",
-                                                    tint = themeColors.translationText.copy(alpha = 0.5f),
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-                                        }
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        LinearProgressIndicator(
+                                            progress = { habitFraction },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(6.dp)
+                                                .clip(RoundedCornerShape(3.dp)),
+                                            color = themeColors.accent,
+                                            trackColor = if (isDark) themeColors.border else SurfaceElevatedLight
+                                        )
                                     }
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    LinearProgressIndicator(
-                                        progress = { habitFraction },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(6.dp)
-                                            .clip(RoundedCornerShape(3.dp)),
-                                        color = themeColors.accent,
-                                        trackColor = if (isDark) themeColors.border else SurfaceElevatedLight
-                                    )
                                 }
                             }
                         }
@@ -451,105 +446,110 @@ fun HabitTrackerScreen(
 }
 
 @Composable
-private fun QiyamReminderCard(
-    viewModel: MainViewModel,
+fun SwipeableHabitRow(
+    habit: com.example.data.local.DailyHabitEntity,
     themeColors: com.example.ui.theme.ReadingThemeColors,
     isDark: Boolean,
-    isLangArabic: Boolean
+    onMarkAsDone: () -> Unit,
+    onDelete: () -> Unit,
+    content: @Composable () -> Unit
 ) {
-    val qiyamOffset by viewModel.qiyamReminderOffsetMinutes.collectAsStateWithLifecycle()
-    val prayerTimes by viewModel.prayerTimes.collectAsStateWithLifecycle()
+    val swipeOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scope = rememberCoroutineScope()
 
-    val offsetAbs = Math.abs(qiyamOffset)
-    val timeLabel = if (qiyamOffset <= 0) "$offsetAbs min before Fajr" else "$offsetAbs min after Fajr"
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = themeColors.surface,
-        border = null,
-        shadowElevation = 0.dp
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.Transparent)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        // Swipe Backgrounds (Green for Right swipe, Red for Left swipe)
+        val offset = swipeOffsetX.value
+        if (offset != 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        color = if (offset > 0) Color(0xFF1BA486) else Color(0xFFE53935), // Primary Teal vs Soft Red
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(horizontal = 20.dp),
+                contentAlignment = if (offset > 0) Alignment.CenterStart else Alignment.CenterEnd
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (isLangArabic) "وقت تذكير قيام الليل" else "Qiyam / Tahajjud Reminder Offset",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = themeColors.arabicText
-                        )
-                    )
-                    Text(
-                        text = if (isLangArabic) "ضبط موعد تنبيه قيام الليل بالنسبة لصلاة الفجر ($timeLabel)" else "Adjust Tahajjud reminder time relative to Fajr ($timeLabel)",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = themeColors.translationText,
-                            fontSize = 11.5.sp
-                        )
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = themeColors.accent.copy(alpha = 0.12f),
-                    border = null,
-                    modifier = Modifier.clickable { viewModel.resetQiyamOffset() }
-                ) {
-                    Text(
-                        text = if (isLangArabic) "إعادة ضبط" else "Reset",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = themeColors.accent,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        ),
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
-                    )
-                }
-            }
-
-            // Adjustment pill buttons (-15m, -5m, +5m, +15m)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                listOf(-15, -5, 5, 15).forEach { delta ->
-                    val label = if (delta > 0) "+${delta}m" else "${delta}m"
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { viewModel.updateQiyamOffset(delta) },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isDark) Color(0xFF232D30) else SoftTealTint.copy(alpha = 0.5f),
-                        border = null
+                if (offset > 0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = themeColors.arabicText,
-                                    fontSize = 12.sp
-                                )
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Mark as Done",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Done",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
-                        }
+                        )
+                    }
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Delete",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
+        }
+
+        // Foreground Card Content
+        Box(
+            modifier = Modifier
+                .offset { androidx.compose.ui.unit.IntOffset(offset.toInt(), 0) }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            scope.launch {
+                                val targetOffset = swipeOffsetX.value
+                                if (targetOffset > 150f) {
+                                    onMarkAsDone()
+                                    swipeOffsetX.animateTo(0f)
+                                } else if (targetOffset < -150f) {
+                                    onDelete()
+                                    swipeOffsetX.animateTo(0f)
+                                } else {
+                                    swipeOffsetX.animateTo(0f)
+                                }
+                            }
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            scope.launch {
+                                val newOffset = (swipeOffsetX.value + dragAmount).coerceIn(-300f, 300f)
+                                swipeOffsetX.snapTo(newOffset)
+                            }
+                        }
+                    )
+                }
+                .fillMaxWidth()
+        ) {
+            content()
         }
     }
 }

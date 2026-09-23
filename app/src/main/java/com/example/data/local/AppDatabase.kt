@@ -22,9 +22,10 @@ import androidx.room.RoomDatabase
         VerseEntity::class,
         QuranNoteEntity::class,
         QuranBookmarkEntity::class,
-        HifzEventEntity::class
+        HifzEventEntity::class,
+        QuranReadingSessionEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -62,6 +63,23 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_12_13 = object : androidx.room.migration.Migration(12, 13) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `quran_reading_sessions` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `targetSeconds` INTEGER NOT NULL,
+                        `elapsedSeconds` INTEGER NOT NULL,
+                        `completed` INTEGER NOT NULL,
+                        `startedAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -69,7 +87,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "noor_database.db"
                 )
-                .addMigrations(MIGRATION_10_11, MIGRATION_11_12)
+                .addMigrations(MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance
