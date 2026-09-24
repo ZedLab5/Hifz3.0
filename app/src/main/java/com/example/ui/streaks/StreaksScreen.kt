@@ -183,16 +183,41 @@ private fun isCoreHabitTitle(title: String): Boolean {
            lower.contains("dua") || lower.contains("du'a")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StreaksScreen(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
-    HabitTrackerScreen(
-        viewModel = viewModel,
-        modifier = modifier,
-        initialTab = 1
-    )
+    val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
+    val isLangArabic = appLanguage.equals("Arabic", ignoreCase = true) ||
+            appLanguage == "العربية" ||
+            appLanguage.startsWith("ar", ignoreCase = true)
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val themeColors = if (isDark) com.example.ui.theme.ReadingThemes.ObsidianNight else com.example.ui.theme.ReadingThemes.MadaniCrisp
+
+    androidx.compose.material3.Scaffold(
+        topBar = {
+            com.example.ui.components.NoorTopBar(
+                title = if (isLangArabic) "إحصائيات الالتزام والاستقامة" else "Streaks & Consistency",
+                eyebrow = "ISTIQAMAH STATS",
+                subtitle = if (isLangArabic) "سجل المواظبة والعبادات اليومية" else "Unified Daily Spiritual Momentum",
+                onBackClick = { viewModel.navigateBack() },
+                backContentDescription = "Back",
+                isDark = isDark,
+                themeColors = themeColors
+            )
+        },
+        containerColor = if (isDark) themeColors.background else Color(0xFFF6F8F7),
+        modifier = modifier
+    ) { paddingValues ->
+        StreaksStatsContent(
+            viewModel = viewModel,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -32,9 +32,15 @@ data class DailyHabitEntity(
     val targetCount: Int,
     val currentCount: Int,
     val isCompleted: Boolean,
-    val category: String, // "Quran", "Dhikr", "Salah", "Charity", "Knowledge"
+    val category: String, // "Quran", "Dhikr", "Salah", "Charity", "Knowledge", "Sunnah"
     val iconType: String,
-    val completedDateIso: String? = null // ISO date string (e.g. "2026-09-20") when habit was completed
+    val completedDateIso: String? = null, // ISO date string (e.g. "2026-09-20") when habit was completed
+    val pinnedToPlanner: Boolean = false,
+    val pinnedDaysMask: Int = 127, // 7-bit mask (127 = 1111111b: Mon..Sun all active)
+    val scheduledTimeMinutes: Int? = null, // Minutes from midnight (e.g. 420 for 07:00 AM)
+    val isAlarmEnabled: Boolean = false,
+    val targetDateIso: String? = null, // Specific single date string (YYYY-MM-DD), or null for recurring
+    val notes: String? = null
 )
 
 @Entity(tableName = "reading_progress")

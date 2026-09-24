@@ -4862,6 +4862,96 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun toggleHabitPin(habit: DailyHabitEntity) {
+        viewModelScope.launch {
+            val newPinned = !habit.pinnedToPlanner
+            val updated = habit.copy(pinnedToPlanner = newPinned)
+            repository.updateHabit(updated)
+            triggerHaptic()
+            showToast(if (newPinned) "Pinned to Planner 📌" else "Unpinned from Planner")
+        }
+    }
+
+    fun updateHabitPlannerSchedule(
+        habit: DailyHabitEntity,
+        isPinned: Boolean,
+        daysMask: Int,
+        timeMinutes: Int?,
+        isAlarmEnabled: Boolean,
+        targetDateIso: String?,
+        notes: String? = null
+    ) {
+        viewModelScope.launch {
+            val updated = habit.copy(
+                pinnedToPlanner = isPinned,
+                pinnedDaysMask = daysMask,
+                scheduledTimeMinutes = timeMinutes,
+                isAlarmEnabled = isAlarmEnabled,
+                targetDateIso = targetDateIso,
+                notes = notes
+            )
+            repository.updateHabit(updated)
+            if (isAlarmEnabled && timeMinutes != null) {
+                com.example.data.notifications.HabitAlarmScheduler.scheduleHabitAlarm(
+                    context = getApplication(),
+                    habitId = habit.id,
+                    habitTitle = habit.title,
+                    category = habit.category,
+                    timeMinutes = timeMinutes,
+                    daysMask = daysMask,
+                    targetDateIso = targetDateIso
+                )
+                showToast("Schedule & alarm saved ⏰")
+            } else {
+                com.example.data.notifications.HabitAlarmScheduler.cancelHabitAlarm(
+                    context = getApplication(),
+                    habitId = habit.id
+                )
+                showToast("Schedule updated")
+            }
+            triggerHaptic()
+        }
+    }
+
+    fun addCustomHabitWithPlanner(
+        title: String,
+        target: Int,
+        category: String,
+        isPinned: Boolean = true,
+        daysMask: Int = 127,
+        timeMinutes: Int? = null,
+        isAlarmEnabled: Boolean = false,
+        targetDateIso: String? = null,
+        notes: String? = null
+    ) {
+        viewModelScope.launch {
+            val id = repository.addCustomHabit(
+                title = title,
+                targetCount = target,
+                category = category,
+                pinnedToPlanner = isPinned,
+                pinnedDaysMask = daysMask,
+                scheduledTimeMinutes = timeMinutes,
+                isAlarmEnabled = isAlarmEnabled,
+                targetDateIso = targetDateIso,
+                notes = notes
+            )
+            if (isAlarmEnabled && timeMinutes != null && id > 0) {
+                com.example.data.notifications.HabitAlarmScheduler.scheduleHabitAlarm(
+                    context = getApplication(),
+                    habitId = id,
+                    habitTitle = title,
+                    category = category,
+                    timeMinutes = timeMinutes,
+                    daysMask = daysMask,
+                    targetDateIso = targetDateIso
+                )
+            }
+            showToast("Habit added to planner! ✨")
+            triggerHaptic()
+        }
+    }
+
     fun addCustomHabit(title: String, target: Int, category: String) {
         viewModelScope.launch {
             repository.addCustomHabit(title, target, category)
@@ -4871,6 +4961,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteHabit(habit: DailyHabitEntity) {
         viewModelScope.launch {
+            com.example.data.notifications.HabitAlarmScheduler.cancelHabitAlarm(
+                context = getApplication(),
+                habitId = habit.id
+            )
             repository.deleteHabit(habit)
             showToast("Habit deleted")
         }

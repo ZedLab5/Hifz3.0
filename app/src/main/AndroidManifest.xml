@@ -42,6 +42,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".data.notifications.HabitAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".data.prayer.BootReceiver"
             android:exported="true">
             <intent-filter>

@@ -30,6 +30,12 @@ interface NoorDao {
     @Query("SELECT * FROM daily_habits")
     fun getAllHabits(): Flow<List<DailyHabitEntity>>
 
+    @Query("SELECT * FROM daily_habits")
+    suspend fun getAllHabitsOnce(): List<DailyHabitEntity>
+
+    @Query("SELECT * FROM daily_habits WHERE id = :id LIMIT 1")
+    suspend fun getHabitById(id: Long): DailyHabitEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHabit(habit: DailyHabitEntity): Long
 

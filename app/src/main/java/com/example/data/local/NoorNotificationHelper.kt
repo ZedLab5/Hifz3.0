@@ -20,6 +20,7 @@ object NoorNotificationHelper {
     const val CHANNEL_HIFZ_REMINDERS = "noor_hifz_reminders_v2"
     const val CHANNEL_SUNNAH_REMINDERS = "noor_sunnah_reminders_v2"
     const val CHANNEL_STREAK_REMINDERS = "noor_streak_reminders_v2"
+    const val CHANNEL_ROUTINE_PLANNER_ALERTS = "noor_routine_planner_alerts_v2"
 
     fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -91,8 +92,19 @@ object NoorNotificationHelper {
                 setBypassDnd(true)
             }
 
+            val routineChannel = NotificationChannel(
+                CHANNEL_ROUTINE_PLANNER_ALERTS,
+                "Daily Planner & Routine Alarms",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Custom scheduled alarms for your pinned daily spiritual routines and habits."
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
+            }
+
             notificationManager.createNotificationChannels(
-                listOf(prayerChannel, athkarChannel, khatmaChannel, hifzChannel, sunnahChannel, streakChannel)
+                listOf(prayerChannel, athkarChannel, khatmaChannel, hifzChannel, sunnahChannel, streakChannel, routineChannel)
             )
         }
     }
@@ -254,6 +266,33 @@ object NoorNotificationHelper {
             title = title,
             content = content,
             targetDestination = item.targetDestination.name
+        )
+    }
+
+    fun showRoutineAlarmNotification(
+        context: Context,
+        habitId: Long,
+        habitTitle: String,
+        category: String
+    ) {
+        val prefs = context.getSharedPreferences("noor_prefs", Context.MODE_PRIVATE)
+        val appLang = prefs.getString("app_language", "English") ?: "English"
+        val isArabic = appLang.equals("Arabic", ignoreCase = true) || appLang == "العربية" || appLang.startsWith("ar", ignoreCase = true)
+
+        val title = if (isArabic) "⏰ تذكير العبادة اليومية: $habitTitle" else "⏰ Daily Spiritual Routine: $habitTitle"
+        val content = if (isArabic)
+            "حان موعد إنجاز وردك الإيماني ($category). واصل استقامتك اليوم! 🌿"
+            else "It is time for your scheduled spiritual routine ($category). Keep your consistency! 🌿"
+
+        val notificationId = 8000 + (habitId.hashCode() and 0x7FFFFFFF) % 1000
+
+        showNotification(
+            context = context,
+            channelId = CHANNEL_ROUTINE_PLANNER_ALERTS,
+            notificationId = notificationId,
+            title = title,
+            content = content,
+            targetDestination = "HABIT_TRACKER"
         )
     }
 

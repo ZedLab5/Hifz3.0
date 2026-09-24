@@ -390,12 +390,28 @@ class NoorRepository(
         if (existing.isNullOrEmpty()) {
             val defaults = listOf(
                 DailyHabitEntity(
-                    title = "Tahajjud / Qiyam al-Layl",
+                    title = "Fajr Prayer & Morning Adhkar",
                     targetCount = 1,
                     currentCount = 0,
                     isCompleted = false,
-                    category = "Sunnah",
-                    iconType = "moon"
+                    category = "Prayer",
+                    iconType = "sun",
+                    pinnedToPlanner = true,
+                    pinnedDaysMask = 127,
+                    scheduledTimeMinutes = 315, // 05:15 AM
+                    isAlarmEnabled = true
+                ),
+                DailyHabitEntity(
+                    title = "Morning Quran Surah Al-Kahf / Ya-Sin",
+                    targetCount = 1,
+                    currentCount = 0,
+                    isCompleted = false,
+                    category = "Quran",
+                    iconType = "book",
+                    pinnedToPlanner = true,
+                    pinnedDaysMask = 127,
+                    scheduledTimeMinutes = 450, // 07:30 AM
+                    isAlarmEnabled = true
                 ),
                 DailyHabitEntity(
                     title = "Duha Prayer (Salat al-Duha)",
@@ -403,42 +419,107 @@ class NoorRepository(
                     currentCount = 0,
                     isCompleted = false,
                     category = "Sunnah",
-                    iconType = "sun"
+                    iconType = "sun",
+                    pinnedToPlanner = true,
+                    pinnedDaysMask = 127,
+                    scheduledTimeMinutes = 570, // 09:30 AM
+                    isAlarmEnabled = true
                 ),
                 DailyHabitEntity(
-                    title = "Daily Sadaqah / Act of Kindness",
+                    title = "Dhuhr Prayer & Midday Reflection",
                     targetCount = 1,
                     currentCount = 0,
                     isCompleted = false,
-                    category = "Charity",
-                    iconType = "heart"
+                    category = "Prayer",
+                    iconType = "sun",
+                    pinnedToPlanner = true,
+                    pinnedDaysMask = 127,
+                    scheduledTimeMinutes = 750, // 12:30 PM
+                    isAlarmEnabled = true
                 ),
                 DailyHabitEntity(
-                    title = "Salawat upon the Prophet ﷺ",
+                    title = "Afternoon Hifz Quran Revision",
+                    targetCount = 1,
+                    currentCount = 0,
+                    isCompleted = false,
+                    category = "Quran",
+                    iconType = "star",
+                    pinnedToPlanner = true,
+                    pinnedDaysMask = 127,
+                    scheduledTimeMinutes = 945, // 03:45 PM
+                    isAlarmEnabled = true
+                ),
+                DailyHabitEntity(
+                    title = "Asr Prayer & Evening Istighfar",
+                    targetCount = 1,
+                    currentCount = 0,
+                    isCompleted = false,
+                    category = "Prayer",
+                    iconType = "tasbih",
+                    pinnedToPlanner = true,
+                    pinnedDaysMask = 127,
+                    scheduledTimeMinutes = 990, // 04:30 PM
+                    isAlarmEnabled = true
+                ),
+                DailyHabitEntity(
+                    title = "Evening Adhkar & Maghrib Dua",
+                    targetCount = 1,
+                    currentCount = 0,
+                    isCompleted = false,
+                    category = "Dhikr",
+                    iconType = "moon",
+                    pinnedToPlanner = true,
+                    pinnedDaysMask = 127,
+                    scheduledTimeMinutes = 1095, // 06:15 PM
+                    isAlarmEnabled = true
+                ),
+                DailyHabitEntity(
+                    title = "Isha Prayer & 100x Salawat",
                     targetCount = 100,
                     currentCount = 0,
                     isCompleted = false,
                     category = "Dhikr",
-                    iconType = "tasbih"
+                    iconType = "tasbih",
+                    pinnedToPlanner = true,
+                    pinnedDaysMask = 127,
+                    scheduledTimeMinutes = 1215, // 08:15 PM
+                    isAlarmEnabled = true
                 ),
                 DailyHabitEntity(
-                    title = "Witr Prayer",
+                    title = "Surah Al-Mulk Before Sleep",
                     targetCount = 1,
                     currentCount = 0,
                     isCompleted = false,
-                    category = "Sunnah",
-                    iconType = "star"
-                ),
-                DailyHabitEntity(
-                    title = "Sunnah Fasting (Mon/Thu / White Days)",
-                    targetCount = 1,
-                    currentCount = 0,
-                    isCompleted = false,
-                    category = "Fasting",
-                    iconType = "heart"
+                    category = "Quran",
+                    iconType = "moon",
+                    pinnedToPlanner = true,
+                    pinnedDaysMask = 127,
+                    scheduledTimeMinutes = 1290, // 09:30 PM
+                    isAlarmEnabled = true
                 )
             )
             dao.insertHabits(defaults)
+        } else {
+            // Backwards-compatibility upgrade: if existing habits are untimed or unpinned, populate mock schedule times and alarms
+            val updated = existing.mapIndexed { index, habit ->
+                var h = habit
+                if (!h.pinnedToPlanner) {
+                    h = h.copy(pinnedToPlanner = true, pinnedDaysMask = 127)
+                }
+                if (h.scheduledTimeMinutes == null) {
+                    val time = when (index % 6) {
+                        0 -> 315  // 05:15 AM
+                        1 -> 570  // 09:30 AM
+                        2 -> 750  // 12:30 PM
+                        3 -> 990  // 04:30 PM
+                        4 -> 1095 // 06:15 PM
+                        else -> 1215 // 08:15 PM
+                    }
+                    h = h.copy(scheduledTimeMinutes = time, isAlarmEnabled = true)
+                }
+                h
+            }
+            dao.insertHabits(updated)
         }
 
         val existingQada = prayerDao.getAllQadaRecords().firstOrNull()
@@ -595,15 +676,35 @@ class NoorRepository(
         dao.updateHabit(updated)
     }
 
-    suspend fun addCustomHabit(title: String, targetCount: Int, category: String) {
-        dao.insertHabit(
+    suspend fun updateHabit(habit: DailyHabitEntity) {
+        dao.updateHabit(habit)
+    }
+
+    suspend fun addCustomHabit(
+        title: String,
+        targetCount: Int,
+        category: String,
+        pinnedToPlanner: Boolean = false,
+        pinnedDaysMask: Int = 127,
+        scheduledTimeMinutes: Int? = null,
+        isAlarmEnabled: Boolean = false,
+        targetDateIso: String? = null,
+        notes: String? = null
+    ): Long {
+        return dao.insertHabit(
             DailyHabitEntity(
                 title = title,
                 targetCount = targetCount,
                 currentCount = 0,
                 isCompleted = false,
                 category = category,
-                iconType = "star"
+                iconType = "star",
+                pinnedToPlanner = pinnedToPlanner,
+                pinnedDaysMask = pinnedDaysMask,
+                scheduledTimeMinutes = scheduledTimeMinutes,
+                isAlarmEnabled = isAlarmEnabled,
+                targetDateIso = targetDateIso,
+                notes = notes
             )
         )
     }

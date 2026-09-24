@@ -26,6 +26,7 @@ class BootReceiver : BroadcastReceiver() {
                 try {
                     AlarmRescheduler.rescheduleFromSavedSettings(context)
                     com.example.data.notifications.SpiritualAlarmScheduler.rescheduleAll(context)
+                    com.example.data.notifications.HabitAlarmScheduler.rescheduleAll(context)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 } finally {
