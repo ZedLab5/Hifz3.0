@@ -258,80 +258,112 @@ fun HabitTrackerScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Main Tab Switcher: Planner & Tasks (0) | Google Calendar View (1)
+            // Unified Minimal View Selector: Planner (0) | Timeline (1) | Month (2)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .height(46.dp),
+                    .height(42.dp),
                 shape = CircleShape,
                 color = if (isDark) Color(0xFF1E293B) else SoftNavyPillBg
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    // Tab 0: Daily Planner & Tasks
-                    val isTasksSelected = selectedTab == 0
+                    // Pill 0: Planner
+                    val is0Selected = selectedTab == 0
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .clip(CircleShape)
-                            .background(if (isTasksSelected) PrimaryTeal else Color.Transparent)
+                            .background(if (is0Selected) PrimaryTeal else Color.Transparent)
                             .clickable { selectedTab = 0 },
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Checklist,
                                 contentDescription = null,
-                                tint = if (isTasksSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                modifier = Modifier.size(16.dp)
+                                tint = if (is0Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                                modifier = Modifier.size(15.dp)
                             )
                             Text(
-                                text = if (isLangArabic) "الجدول والمهام" else "Planner & Tasks",
+                                text = if (isLangArabic) "الجدول" else "Planner",
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = if (isTasksSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isTasksSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                    fontSize = 13.sp
+                                    fontWeight = if (is0Selected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (is0Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                                    fontSize = 12.5.sp
                                 )
                             )
                         }
                     }
 
-                    // Tab 1: Google Calendar View
-                    val isCalendarSelected = selectedTab == 1
+                    // Pill 1: Day Timeline
+                    val is1Selected = selectedTab == 1
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .clip(CircleShape)
-                            .background(if (isCalendarSelected) PrimaryTeal else Color.Transparent)
+                            .background(if (is1Selected) PrimaryTeal else Color.Transparent)
                             .clickable { selectedTab = 1 },
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ViewDay,
+                                contentDescription = null,
+                                tint = if (is1Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = if (isLangArabic) "الوقت اليومي" else "Timeline",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = if (is1Selected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (is1Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                                    fontSize = 12.5.sp
+                                )
+                            )
+                        }
+                    }
+
+                    // Pill 2: Month View
+                    val is2Selected = selectedTab == 2
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(CircleShape)
+                            .background(if (is2Selected) PrimaryTeal else Color.Transparent)
+                            .clickable { selectedTab = 2 },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CalendarMonth,
                                 contentDescription = null,
-                                tint = if (isCalendarSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                modifier = Modifier.size(16.dp)
+                                tint = if (is2Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                                modifier = Modifier.size(15.dp)
                             )
                             Text(
-                                text = if (isLangArabic) "تقويم المهام (Calendar)" else "Calendar Style",
+                                text = if (isLangArabic) "الشهر" else "Month",
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = if (isCalendarSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isCalendarSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                    fontSize = 13.sp
+                                    fontWeight = if (is2Selected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (is2Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                                    fontSize = 12.5.sp
                                 )
                             )
                         }
@@ -357,20 +389,6 @@ fun HabitTrackerScreen(
                             isDark = isDark,
                             isArabic = isLangArabic,
                             onSelectDate = { selectedDate = it }
-                        )
-                    }
-
-                    // 2. Selected Day Planner Agenda Banner
-                    item(key = "planner_agenda_banner") {
-                        PlannerAgendaBanner(
-                            selectedDate = selectedDate,
-                            isToday = isViewingToday,
-                            pinnedCount = pinnedTotal,
-                            completedPinnedCount = pinnedCompleted,
-                            pinnedProgress = pinnedProgress,
-                            isDark = isDark,
-                            isArabic = isLangArabic,
-                            onJumpToToday = { selectedDate = today }
                         )
                     }
 
@@ -510,33 +528,48 @@ fun HabitTrackerScreen(
                         }
                     }
                 }
+            } else if (selectedTab == 1) {
+                // Mode 1: Clean Day Timeline with Prayer Context Markers
+                Column(modifier = Modifier.fillMaxSize()) {
+                    CalendarHorizonStrip(
+                        selectedDate = selectedDate,
+                        today = today,
+                        habits = habits,
+                        isDark = isDark,
+                        isArabic = isLangArabic,
+                        onSelectDate = { selectedDate = it }
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    GoogleCalendarDayTimeline(
+                        selectedDate = selectedDate,
+                        today = today,
+                        habits = habits,
+                        isDark = isDark,
+                        isArabic = isLangArabic,
+                        onIncrementHabit = { viewModel.incrementHabit(it) },
+                        onMarkDoneHabit = { viewModel.markHabitDone(it) },
+                        onTogglePinHabit = { viewModel.toggleHabitPin(it) },
+                        onEditHabitSchedule = { editingHabitForSchedule = it },
+                        onDeleteHabit = { viewModel.deleteHabit(it) },
+                        onAddNewRoutineForSlot = { date, hour ->
+                            preselectedAddDateIso = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                            preselectedAddHour = hour
+                            showAddDialog = true
+                        }
+                    )
+                }
             } else {
-                // Tab 1: Full Google Calendar Style Experience
-                GoogleCalendarExperience(
-                    viewMode = gcalViewMode,
+                // Mode 2: Month Grid View
+                GoogleCalendarMonthGrid(
                     currentYearMonth = currentYearMonth,
-                    selectedDate = calendarSelectedDate,
+                    selectedDate = selectedDate,
+                    today = today,
                     habits = habits,
                     isDark = isDark,
                     isArabic = isLangArabic,
-                    onViewModeChange = { gcalViewMode = it },
-                    onSelectDate = { calendarSelectedDate = it },
-                    onPreviousMonth = { currentYearMonth = currentYearMonth.minusMonths(1) },
-                    onNextMonth = { currentYearMonth = currentYearMonth.plusMonths(1) },
-                    onJumpToToday = {
-                        val now = LocalDate.now()
-                        calendarSelectedDate = now
-                        currentYearMonth = YearMonth.of(now.year, now.month)
-                    },
-                    onIncrementHabit = { viewModel.incrementHabit(it) },
-                    onMarkDoneHabit = { viewModel.markHabitDone(it) },
-                    onTogglePinHabit = { viewModel.toggleHabitPin(it) },
-                    onEditHabitSchedule = { editingHabitForSchedule = it },
-                    onDeleteHabit = { viewModel.deleteHabit(it) },
-                    onAddNewRoutineForSlot = { date, hour ->
-                        preselectedAddDateIso = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                        preselectedAddHour = hour
-                        showAddDialog = true
+                    onSelectDate = {
+                        selectedDate = it
+                        selectedTab = 1 // Switch to Timeline view on date select
                     }
                 )
             }
@@ -1080,6 +1113,49 @@ private fun GoogleCalendarDayTimeline(
                             .height(1.dp)
                             .background(if (isDark) Color(0xFF334155) else NeutralBorderLight)
                     )
+
+                    // Prayer / Time-of-Day Context Marker
+                    val prayerMarker = when (hour) {
+                        5 -> Pair(if (isArabic) "صلاة الفجر 🌅" else "Fajr Prayer 🌅", "05:15 AM")
+                        6 -> Pair(if (isArabic) "الشروق ☀️" else "Sunrise ☀️", "06:30 AM")
+                        12 -> Pair(if (isArabic) "صلاة الظهر ☀️" else "Dhuhr Prayer ☀️", "12:30 PM")
+                        16 -> Pair(if (isArabic) "صلاة العصر 🌤️" else "Asr Prayer 🌤️", "04:30 PM")
+                        18 -> Pair(if (isArabic) "صلاة المغرب 🌇" else "Maghrib Prayer 🌇", "06:15 PM")
+                        20 -> Pair(if (isArabic) "صلاة العشاء 🌙" else "Isha Prayer 🌙", "08:15 PM")
+                        else -> null
+                    }
+
+                    if (prayerMarker != null) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isDark) Color(0xFF1E293B) else TealTintBg,
+                            border = BorderStroke(1.dp, PrimaryTeal.copy(alpha = 0.35f)),
+                            modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = prayerMarker.first,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = PrimaryTeal,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                                Text(
+                                    text = prayerMarker.second,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A),
+                                        fontSize = 10.sp
+                                    )
+                                )
+                            }
+                        }
+                    }
 
                     // Current Time Red Indicator Line (Google Calendar signature)
                     if (isCurrentHourSlot) {
