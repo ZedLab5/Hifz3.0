@@ -773,7 +773,7 @@ private fun ToolGridItem(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
 
                 Text(
                     text = if (isArabic) tool.subtitleAr else tool.subtitleEn,

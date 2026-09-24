@@ -806,7 +806,7 @@ private fun StreakHeroSummaryCard(
                                     fontSize = 11.sp
                                 )
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                             Text(
                                 text = "$longestStreak Days",
                                 style = MaterialTheme.typography.titleMedium.copy(
@@ -852,7 +852,7 @@ private fun StreakHeroSummaryCard(
                                     fontSize = 11.sp
                                 )
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                             Text(
                                 text = "$freezesRemaining / 2 Left",
                                 style = MaterialTheme.typography.titleMedium.copy(

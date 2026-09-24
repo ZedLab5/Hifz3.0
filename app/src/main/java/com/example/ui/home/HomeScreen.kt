@@ -611,7 +611,7 @@ private fun HomePermissionNoticeBanner(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)
             ) {
                 Text(
                     text = title,
@@ -1055,7 +1055,7 @@ private fun TopFeaturesSection(
                             fontSize = 15.5.sp
                         )
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingComfortable))
                     Text(
                         text = if (isLangArabic) "وصول سريع لأهم الأدوات اليومية" else "Quick access to your spiritual utility essentials",
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -1205,7 +1205,7 @@ private fun DailyActivitySection(
                             fontSize = 16.5.sp
                         )
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingComfortable))
                     Text(
                         text = if (isLangArabic) "تمت تأدية $completedCount من 4 طاعات أساسية اليوم" else "$completedCount of 4 daily devotions completed",
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -1321,7 +1321,7 @@ private fun DailyActivitySection(
                                 }
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
                                 Text(
                                     text = if (isLangArabic) "الصلوات الخمس" else "Salat",
                                     style = MaterialTheme.typography.titleSmall.copy(
@@ -1409,7 +1409,7 @@ private fun DailyActivitySection(
                                 }
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
                                 Text(
                                     text = if (isLangArabic) "القرآن" else "Quran",
                                     style = MaterialTheme.typography.titleSmall.copy(
@@ -1503,7 +1503,7 @@ private fun DailyActivitySection(
                                 }
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
                                 Text(
                                     text = if (isLangArabic) "التسبيح" else "Tasbih",
                                     style = MaterialTheme.typography.titleSmall.copy(
@@ -1591,7 +1591,7 @@ private fun DailyActivitySection(
                                 }
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
                                 Text(
                                     text = if (isLangArabic) "الأذكار" else "Azkar",
                                     style = MaterialTheme.typography.titleSmall.copy(

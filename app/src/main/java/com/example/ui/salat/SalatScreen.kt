@@ -219,9 +219,9 @@ private fun rememberSalatColors(themeColors: ReadingThemeColors): SalatColorPale
                 linkTextColor = Color(0xFF7A5C3E),
                 goldColor = Color(0xFFD9A44E),
                 goldAccentColor = Color(0xFFD9A44E),
-                softGoldNoticeBg = Color(0xFFE6F2F0),
-                noticeBg = Color(0xFFE6F2F0), // Soft teal notice
-                noticeTextColor = Color(0xFF0F433F), // Deep teal text/icons
+                softGoldNoticeBg = Color(0xFFFDF8EE),
+                noticeBg = Color(0xFFFDF8EE), // Soft gold notice
+                noticeTextColor = Color(0xFFB45309), // Soft amber/gold text & icons
                 titleText = Color(0xFF1F1F1F),
                 subtext = Color(0xFF7A6650),
                 dividerColor = Color(0xFFEDE0C8),
@@ -254,9 +254,9 @@ private fun rememberSalatColors(themeColors: ReadingThemeColors): SalatColorPale
                 linkTextColor = Color(0xFF2FBF96),
                 goldColor = SecondaryGoldDark,
                 goldAccentColor = SecondaryGoldDark,
-                softGoldNoticeBg = Color(0xFF064E3B).copy(alpha = 0.25f),
-                noticeBg = Color(0xFF064E3B).copy(alpha = 0.25f),
-                noticeTextColor = Color(0xFF34D399),
+                softGoldNoticeBg = Color(0xFF78350F).copy(alpha = 0.25f),
+                noticeBg = Color(0xFF78350F).copy(alpha = 0.25f),
+                noticeTextColor = Color(0xFFFCD34D),
                 titleText = themeColors.arabicText,
                 subtext = themeColors.translationText,
                 dividerColor = themeColors.border.copy(alpha = 0.25f),
@@ -289,9 +289,9 @@ private fun rememberSalatColors(themeColors: ReadingThemeColors): SalatColorPale
                 linkTextColor = Color(0xFF334155),
                 goldColor = Color(0xFFC28100),
                 goldAccentColor = Color(0xFFB45309),
-                softGoldNoticeBg = Color(0xFFF0FDF4),
-                noticeBg = Color(0xFFF0FDF4), // Refreshing soft mint green notice
-                noticeTextColor = Color(0xFF15803D), // Rich emerald text & icons
+                softGoldNoticeBg = Color(0xFFFFFBEB),
+                noticeBg = Color(0xFFFFFBEB), // Soft gold notice
+                noticeTextColor = Color(0xFFB45309), // Soft amber/gold text & icons
                 titleText = themeColors.arabicText,
                 subtext = themeColors.translationText,
                 dividerColor = Color(0xFFECEFF1),
@@ -343,7 +343,6 @@ fun SalatScreen(
                         icon = Icons.Default.CalendarMonth,
                         contentDescription = "Monthly Prayer Timetable"
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
                     NoorGlassIconButton(
                         onClick = { isSettingsModalOpen = true },
                         icon = Icons.Default.Tune,
@@ -413,6 +412,7 @@ private fun SalatSettingsModalSheet(
     val isAudioPlaying by viewModel.isAthanAudioPreviewPlaying.collectAsStateWithLifecycle()
     val hijriOffset by viewModel.hijriAdjustmentDays.collectAsStateWithLifecycle()
     val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
+    val showVoluntaryPrayers by viewModel.showVoluntaryPrayers.collectAsStateWithLifecycle()
 
     val isArabic = appLanguage.equals("Arabic", ignoreCase = true) ||
             appLanguage == "العربية" ||
@@ -568,7 +568,7 @@ private fun SalatSettingsModalSheet(
                                     color = textTitle
                                 )
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                             Text(
                                 text = stringResource(R.string.salat_mosque_mode_sub, silentDuration),
                                 style = MaterialTheme.typography.bodySmall.copy(
@@ -742,7 +742,7 @@ private fun SalatSettingsModalSheet(
                                 color = textTitle
                             )
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                         Text(
                             text = if (isHanafi) stringResource(R.string.salat_hanafi_asr_desc)
                             else stringResource(R.string.salat_standard_asr_desc),
@@ -758,6 +758,72 @@ private fun SalatSettingsModalSheet(
                     Switch(
                         checked = isHanafi,
                         onCheckedChange = { viewModel.toggleHanafiAsr(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = buttonBg,
+                            uncheckedTrackColor = dividerColor,
+                            uncheckedThumbColor = Color.White
+                        )
+                    )
+                }
+            }
+
+            // VOLUNTARY & NIGHT PRAYERS VISIBILITY TOGGLE
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = cardBg,
+                border = null
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(iconBadgeBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccessTime,
+                                contentDescription = null,
+                                tint = primaryAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = if (isArabic) "عرض مواقيت السنن والنوافل" else "Show Sunnah & Night Prayers",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = textTitle
+                                )
+                            )
+                            Text(
+                                text = if (isArabic) "إظهار أو إخفاء مواقيت صلاة الضحى، قيام الليل، ونصف الليل" else "Toggle visibility of Duha, Midnight, and Qiyam al-Layl",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = textSub,
+                                    fontSize = 11.5.sp
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Switch(
+                        checked = showVoluntaryPrayers,
+                        onCheckedChange = { viewModel.toggleShowVoluntaryPrayers(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = buttonBg,
@@ -2079,6 +2145,8 @@ private fun SalatTimesContentInternal(
     val isAudioPlaying by viewModel.isAthanAudioPreviewPlaying.collectAsStateWithLifecycle()
     val isLocationConfigured by viewModel.isLocationConfigured.collectAsStateWithLifecycle()
     val supplementaryTimes by viewModel.supplementaryPrayerTimes.collectAsStateWithLifecycle()
+    val showVoluntaryPrayers by viewModel.showVoluntaryPrayers.collectAsStateWithLifecycle()
+    val hijriOffset by viewModel.hijriAdjustmentDays.collectAsStateWithLifecycle()
     val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
 
     val isArabic = appLanguage.equals("Arabic", ignoreCase = true) ||
@@ -2127,17 +2195,17 @@ private fun SalatTimesContentInternal(
         }
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             color = colors.cardBackground,
             border = null
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)
             ) {
-                // Top Line: Location & Authority (Full Width)
+                // Top Line: Icon and Location in 1 line
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -2145,7 +2213,7 @@ private fun SalatTimesContentInternal(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
                             .background(colors.iconBadgeBg),
                         contentAlignment = Alignment.Center
@@ -2157,84 +2225,53 @@ private fun SalatTimesContentInternal(
                             modifier = Modifier.size(16.dp)
                         )
                     }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (!isLocationConfigured) {
-                                if (isArabic) "الموقع غير مفعّل" else "Location is Off"
-                            } else if (isArabic) {
-                                selectedZone.arabicName
-                            } else {
-                                "${selectedZone.name}, ${selectedZone.country}"
-                            },
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = colors.titleText,
-                                fontSize = 14.5.sp
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = if (!isLocationConfigured) {
-                                if (isArabic) "اختر مدينة أو فعّل الموقع لتحديث المواقيت" else "Select city or enable GPS to calculate times"
-                            } else {
-                                "${selectedAuthority.name} • ${if (isHanafi) stringResource(R.string.salat_hanafi_asr) else stringResource(R.string.salat_standard_asr)}"
-                            },
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = colors.subtext,
-                                fontSize = 11.5.sp
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = if (!isLocationConfigured) {
+                            if (isArabic) "الموقع غير مفعّل" else "Location is Off"
+                        } else if (isArabic) {
+                            selectedZone.arabicName
+                        } else {
+                            "${selectedZone.name}, ${selectedZone.country}"
+                        },
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.titleText,
+                            fontSize = 15.sp
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
-                // Bottom Line: Normal Date + Hijri Date alongside completed badge
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = stringResource(R.string.salat_date_cd),
-                            tint = colors.salatGreen,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            text = "$normalDateFormatted  •  ${stringResource(R.string.salat_sample_hijri_date)}",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = colors.linkTextColor,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 11.5.sp
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                // Authority: aligned with the icon, no indent
+                Text(
+                    text = if (!isLocationConfigured) {
+                        if (isArabic) "اختر مدينة أو فعّل الموقع لتحديث المواقيت" else "Select city or enable GPS to calculate times"
+                    } else {
+                        "${selectedAuthority.name} • ${if (isHanafi) stringResource(R.string.salat_hanafi_asr) else stringResource(R.string.salat_standard_asr)}"
+                    },
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = colors.subtext,
+                        fontSize = 12.sp
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.linkBadgeBg,
-                        border = null
-                    ) {
-                        Text(
-                            text = stringResource(R.string.salat_completed_count, completedPrayers.size),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = colors.salatGreen,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.5.sp
-                            ),
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
-                        )
-                    }
+                // Date: aligned with the icon, no indent
+                val dynamicHijriDate = remember(hijriOffset, isArabic) {
+                    getHijriDateStringForCalendar(java.time.LocalDate.now(), hijriOffset, isArabic)
                 }
+                Text(
+                    text = "$normalDateFormatted  •  $dynamicHijriDate",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = colors.linkTextColor,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
 
@@ -2271,12 +2308,14 @@ private fun SalatTimesContentInternal(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = if (isArabic) "تعديل مواقيت الصلاة" else "Adjust prayer times?",
+                                text = if (isArabic) "هل تختلف المواقيت عن مسجدك؟ عدّلها بالدقائق" else "Times differ from your mosque? Fine-tune minutes",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.noticeTextColor,
-                                    fontSize = 13.5.sp
-                                )
+                                    fontSize = 13.sp
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -2322,9 +2361,9 @@ private fun SalatTimesContentInternal(
                         ) {
                             Text(
                                 text = if (isArabic)
-                                    "يمكنك ضبط وتقديم أو تأخير دقائق كل صلاة يدوياً من الإعدادات لتطابق مسجدك بدقة."
+                                    "هل تختلف مواقيت تطبيقك عن المسجد؟ يمكنك تقديم أو تأخير دقائق كل صلاة يدوياً من الإعدادات."
                                 else
-                                    "If you see any discrepancy with your local mosque, you can manually fine-tune each prayer's minutes in Settings.",
+                                    "Need to match your local mosque? Fine-tune minutes for each prayer manually in Settings.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = colors.noticeTextColor.copy(alpha = 0.9f),
                                     fontSize = 13.sp,
@@ -2356,7 +2395,7 @@ private fun SalatTimesContentInternal(
                                 Surface(
                                     shape = RoundedCornerShape(50),
                                     color = colors.cardBackground,
-                                    border = null,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.noticeTextColor.copy(alpha = 0.25f)),
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(50))
                                         .clickable { onOpenSettings() }
@@ -2367,7 +2406,7 @@ private fun SalatTimesContentInternal(
                                         horizontalArrangement = Arrangement.spacedBy(5.dp)
                                     ) {
                                         Text(
-                                            text = if (isArabic) "تعديل الأوقات" else "Adjust Times",
+                                            text = if (isArabic) "تعديل الدقائق" else "Fine-Tune Offsets",
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = colors.noticeTextColor,
@@ -2417,7 +2456,7 @@ private fun SalatTimesContentInternal(
                             fontSize = 15.5.sp
                         )
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                     Text(
                         text = stringResource(R.string.salat_daily_schedule_sub),
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -2452,12 +2491,22 @@ private fun SalatTimesContentInternal(
 
                     val nextIsActive = index + 1 < prayerTimes.size && prayerTimes[index + 1].isCurrent && prayerTimes[index + 1].name != "Sunrise"
 
-                    // Prayer Row Container: Both active and inactive rows have the exact same width and height.
-                    Box(
-                        modifier = Modifier
+                    // Prayer Row Container: Active row has a border only (no fill color)
+                    val containerModifier = if (isCurrentActive) {
+                        Modifier
+                            .fillMaxWidth()
+                            .zIndex(rowZIndex)
+                            .padding(horizontal = 2.dp, vertical = 4.dp)
+                            .border(androidx.compose.foundation.BorderStroke(1.2.dp, colors.salatGreen.copy(alpha = 0.5f)), RoundedCornerShape(14.dp))
+                    } else {
+                        Modifier
                             .fillMaxWidth()
                             .zIndex(rowZIndex)
                             .padding(horizontal = 2.dp, vertical = 1.dp)
+                    }
+
+                    Box(
+                        modifier = containerModifier
                     ) {
                         PrayerRowItem(
                             prayer = prayer,
@@ -2484,22 +2533,22 @@ private fun SalatTimesContentInternal(
                     // Divider between rows (suppressed when touching active row to preserve clean rounded border)
                     if (index < prayerTimes.size - 1 && !isCurrentActive && !nextIsActive) {
                         HorizontalDivider(
-                            color = colors.dividerColor.copy(alpha = 0.5f),
-                            thickness = 0.6.dp,
-                            modifier = Modifier.padding(horizontal = 6.dp)
+                            color = colors.dividerColor.copy(alpha = 0.75f),
+                            thickness = 0.8.dp,
+                            modifier = Modifier.padding(horizontal = 24.dp)
                         )
                     }
                 }
 
                 // Voluntary & Night Timings (Duha, Islamic Midnight, Qiyam al-Layl)
-                if (supplementaryTimes != null) {
-                    Spacer(modifier = Modifier.height(10.dp))
+                if (showVoluntaryPrayers) {
+                    Spacer(modifier = Modifier.height(14.dp))
                     HorizontalDivider(
                         color = colors.dividerColor.copy(alpha = 0.7f),
                         thickness = 0.8.dp,
                         modifier = Modifier.padding(horizontal = 4.dp)
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Text(
                         text = if (isArabic) "مواقيت السنن والنوافل وقيام الليل" else stringResource(R.string.salat_supplementary_title),
@@ -2510,7 +2559,7 @@ private fun SalatTimesContentInternal(
                         ),
                         modifier = Modifier.padding(horizontal = 4.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -2523,7 +2572,7 @@ private fun SalatTimesContentInternal(
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
@@ -2535,7 +2584,7 @@ private fun SalatTimesContentInternal(
                                     ),
                                     maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = supplementaryTimes?.duhaTimeString ?: "--:--",
                                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -2554,7 +2603,7 @@ private fun SalatTimesContentInternal(
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
@@ -2566,7 +2615,7 @@ private fun SalatTimesContentInternal(
                                     ),
                                     maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = supplementaryTimes?.midnightTimeString ?: "--:--",
                                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -2585,7 +2634,7 @@ private fun SalatTimesContentInternal(
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
@@ -2597,7 +2646,7 @@ private fun SalatTimesContentInternal(
                                     ),
                                     maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = supplementaryTimes?.qiyamTimeString ?: "--:--",
                                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -2618,20 +2667,19 @@ private fun SalatTimesContentInternal(
         // Forbidden Prayer Times Notice Card (Soft Red palette, collapsible)
         val isWarm = LocalAppThemeMode.current == AppThemeMode.WARM
         val softRedBg = when {
-            isWarm -> Color(0xFFFDF2F0)
+            isWarm -> Color(0xFFFDF5F3)
             themeColors.isDark -> DangerRedBgDark
-            else -> Color(0xFFFEF2F2)
+            else -> Color(0xFFFFF5F5)
         }
         val dangerRedColor = when {
-            isWarm -> Color(0xFFB84033)
+            isWarm -> Color(0xFFAC3B31)
             themeColors.isDark -> DangerRedDark
-            else -> Color(0xFFDC2626)
+            else -> Color(0xFFC53030)
         }
 
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(),
+                .fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             color = softRedBg,
             border = null
@@ -2644,106 +2692,64 @@ private fun SalatTimesContentInternal(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AccessTime,
-                            contentDescription = if (isArabic) "أوقات الكراهة" else "Forbidden Times",
-                            tint = dangerRedColor,
-                            modifier = Modifier.size(19.dp)
+                    Icon(
+                        imageVector = Icons.Default.AccessTime,
+                        contentDescription = if (isArabic) "أوقات الكراهة" else "Forbidden Times",
+                        tint = dangerRedColor,
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isArabic) "أوقات الكراهة وتحريم صلاة التطوع" else "Forbidden Prayer Times",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = dangerRedColor,
+                            fontSize = 15.5.sp
                         )
-                        Text(
-                            text = if (isArabic) "أوقات الكراهة وتحريم صلاة التطوع" else "Forbidden Prayer Times",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = dangerRedColor,
-                                fontSize = 15.5.sp
-                            )
-                        )
-                    }
-
-                    // Hide / Show button top right
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                isForbiddenExpanded = !isForbiddenExpanded
-                            }
-                            .padding(horizontal = 6.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Text(
-                            text = if (isForbiddenExpanded) (if (isArabic) "إخفاء" else "Hide") else (if (isArabic) "عرض" else "Show"),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = dangerRedColor,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp
-                            )
-                        )
-                        Icon(
-                            imageVector = if (isForbiddenExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = if (isForbiddenExpanded) "Hide forbidden times" else "Show forbidden times",
-                            tint = dangerRedColor,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
+                    )
                 }
 
-                AnimatedVisibility(
-                    visible = isForbiddenExpanded,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val forbiddenTextColor = when {
-                            isWarm -> Color(0xFF7A3A35)
-                            themeColors.isDark -> themeColors.translationText
-                            else -> Color(0xFF7F1D1D).copy(alpha = 0.9f)
-                        }
+                    val forbiddenTextColor = when {
+                        isWarm -> Color(0xFF8A3C37)
+                        themeColors.isDark -> themeColors.translationText
+                        else -> Color(0xFF9B2C2C)
+                    }
+                    Text(
+                        text = if (isArabic)
+                            "الأوقات المنهي عنها شرعاً والتي يكره أو يحرم فيها ابتداء صلوات النوافل والتطوع المطلق:"
+                        else
+                            "Specific periods of the day when offering voluntary (nafl) prayers is strictly forbidden or disliked in Islamic tradition:",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = forbiddenTextColor,
+                            fontSize = 13.sp,
+                            lineHeight = 18.5.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    val forbiddenList = if (isArabic) listOf(
+                        "• وقت الشروق: يمتد من بداية طلوع قرص الشمس حتى ترتفع في الأفق قيد رمح (نحو 15 إلى 20 دقيقة بعد تمام شروق الشمس).",
+                        "• وقت الاستواء: في منتصف النهار حينما تتعامد الشمس في كبد السماء حتى تميل وتزول إيذاناً بحلول وقت صلاة الظهر المباركة.",
+                        "• وقت الغروب: في أواخر وقت العصر عند اصفرار قرص الشمس وتغير ضوئها حتى تغرب وتختفي كلياً ويدخل وقت أذان المغرب."
+                    ) else listOf(
+                        "• Sunrise: From dawn and sunrise until the sun has completely risen above the horizon, spanning approximately 15 to 20 minutes after the sunrise phase concludes.",
+                        "• Zenith: At exact midday when the sun reaches its celestial peak, lasting until the sun begins to decline toward the Dhuhr prayer time.",
+                        "• Sunset: During the late afternoon when the sun turns pale yellow until it has completely vanished below the horizon at the start of Maghrib."
+                    )
+                    forbiddenList.forEach { item ->
                         Text(
-                            text = if (isArabic)
-                                "الأوقات المنهي عنها شرعاً والتي يكره أو يحرم فيها ابتداء صلوات النوافل والتطوع المطلق:"
-                            else
-                                "Specific periods of the day when offering voluntary (nafl) prayers is strictly forbidden or disliked in Islamic tradition:",
+                            text = item,
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = forbiddenTextColor,
+                                color = forbiddenTextColor.copy(alpha = 0.85f),
                                 fontSize = 13.sp,
-                                lineHeight = 18.5.sp
+                                lineHeight = 19.sp
                             )
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        val forbiddenList = if (isArabic) listOf(
-                            "• وقت الشروق: يمتد من بداية طلوع قرص الشمس حتى ترتفع في الأفق قيد رمح (نحو 15 إلى 20 دقيقة بعد تمام شروق الشمس).",
-                            "• وقت الاستواء: في منتصف النهار حينما تتعامد الشمس في كبد السماء حتى تميل وتزول إيذاناً بحلول وقت صلاة الظهر المباركة.",
-                            "• وقت الغروب: في أواخر وقت العصر عند اصفرار قرص الشمس وتغير ضوئها حتى تغرب وتختفي كلياً ويدخل وقت أذان المغرب."
-                        ) else listOf(
-                            "• Sunrise: From dawn and sunrise until the sun has completely risen above the horizon, spanning approximately 15 to 20 minutes after the sunrise phase concludes.",
-                            "• Zenith: At exact midday when the sun reaches its celestial peak, lasting until the sun begins to decline toward the Dhuhr prayer time.",
-                            "• Sunset: During the late afternoon when the sun turns pale yellow until it has completely vanished below the horizon at the start of Maghrib."
-                        )
-                        forbiddenList.forEach { item ->
-                            Text(
-                                text = item,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = forbiddenTextColor.copy(alpha = 0.85f),
-                                    fontSize = 13.sp,
-                                    lineHeight = 19.sp
-                                )
-                            )
-                        }
                     }
                 }
             }
@@ -2857,7 +2863,7 @@ private fun PrayerRowItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Left: Checkbox/Icon + Name + Status Badge

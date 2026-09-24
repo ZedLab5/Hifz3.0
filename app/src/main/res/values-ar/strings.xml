@@ -201,12 +201,12 @@
     <!-- Salat Screen -->
     <string name="salat_title">مواقيت الصلاة</string>
     <string name="salat_screen_title">مواقيت الصلاة</string>
-    <string name="salat_screen_subtitle">المواقيت اليومية، تنبيهات الأذان والحسابات الفقهية</string>
+    <string name="salat_screen_subtitle">أوقات الصلاة والأذان</string>
     <string name="salat_tab_times">المواقيت</string>
     <string name="salat_tab_streaks">السلاسل</string>
     <string name="salat_tab_qada">القضاء والصيام</string>
     <string name="salat_date_cd">التاريخ الهجري</string>
-    <string name="salat_sample_hijri_date">١٥ شعبان ١٤٤٧ هـ • اليوم</string>
+    <string name="salat_sample_hijri_date">١٥ شعبان ١٤٤٧ هـ</string>
     <string name="salat_completed_count">تم إنجاز %1$d من 5</string>
     <string name="salat_daily_schedule_title">جدول الصلوات اليومية</string>
     <string name="salat_daily_schedule_sub">انقر على الصلاة لتحديد إتمامها • تخصيص تنبيهات الأذان</string>

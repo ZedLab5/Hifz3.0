@@ -378,7 +378,7 @@ fun NotificationTroubleshootingScreen(
                                     fontSize = 14.sp
                                 )
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                             Text(
                                 text = if (isArabic) "جدولة وتخصيص أوقات أذكار الصباح والمساء، ورد القرآن، النوافل، وسلسلة الالتزام." else "Schedule and customize exact times for Morning & Evening Azkar, Quran targets, Sunnah prayers, and daily habits.",
                                 style = MaterialTheme.typography.bodySmall.copy(
@@ -419,7 +419,7 @@ fun NotificationTroubleshootingScreen(
                             fontSize = 11.5.sp
                         )
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                     Text(
                         text = "Instant hardware and background permission checks",
                         style = MaterialTheme.typography.bodySmall.copy(

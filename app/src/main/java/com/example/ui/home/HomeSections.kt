@@ -973,7 +973,7 @@ fun ChronologicalPrayerTracker(
                                 color = homeColors.titleText
                             )
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                         Text(
                             text = if (isArabic) "سجّل صلواتك اليومية" else "Tap to record prayers",
                             style = MaterialTheme.typography.bodySmall.copy(
@@ -1254,7 +1254,7 @@ fun QuickAccessMiniCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(1.dp))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -1333,7 +1333,7 @@ fun MoreToolsTriggerCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(1.dp))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -1704,7 +1704,7 @@ private fun FavoriteCategoryTile(
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall.copy(
@@ -2078,7 +2078,7 @@ fun UnifiedStreakHomeCard(
                             )
                         )
 
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
 
                         Text(
                             text = if (streakData.currentStreak > 0) {
@@ -2306,7 +2306,7 @@ private fun CompactSectionHeader(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium.copy(
@@ -2935,7 +2935,7 @@ private fun KhatmaActiveProgressCard(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                     Text(
                         text = uiInfo.targetText,
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -4293,7 +4293,7 @@ fun QuranRecitersShowcase(
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
 
                     Text(
                         text = reciterStyle.split("•").firstOrNull()?.trim() ?: reciterStyle,
@@ -4338,7 +4338,7 @@ fun HomeSectionHeader(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium.copy(

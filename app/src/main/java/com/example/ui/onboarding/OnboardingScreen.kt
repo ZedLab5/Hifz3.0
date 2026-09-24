@@ -11,8 +11,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -163,23 +166,25 @@ fun OnboardingScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // 1. Horizontal Pager with 4 screens
+                // 1. Horizontal Pager with clearance for fixed top bar and bottom action bar
                 HorizontalPager(
                     state = pagerState,
                     userScrollEnabled = true,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 48.dp, bottom = 112.dp)
                 ) { page ->
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 22.dp, vertical = 16.dp),
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 22.dp, vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         when (page) {
                             0 -> CreativeWelcomePage(
                                 isArabic = isArabic,
-                                palette = dynamicPalette,
-                                onBegin = { advanceToNextOrFinish() }
+                                palette = dynamicPalette
                             )
 
                             1 -> CreativeFocusPage(
@@ -192,8 +197,7 @@ fun OnboardingScreen(
                                     } else {
                                         selectedFocus + id
                                     }
-                                },
-                                onContinue = { advanceToNextOrFinish() }
+                                }
                             )
 
                             2 -> CreativeAmbiencePage(
@@ -213,8 +217,7 @@ fun OnboardingScreen(
                                         else -> "Madani Crisp"
                                     }
                                     sharedPrefs.edit().putString("shared_reading_theme", modeStr).apply()
-                                },
-                                onContinue = { advanceToNextOrFinish() }
+                                }
                             )
 
                             3 -> CreativePermissionsPage(
@@ -227,27 +230,18 @@ fun OnboardingScreen(
                                     sharedPrefs.edit().putString("selected_prayer_zone_id", zone.id).apply()
                                 },
                                 onRequestNotifications = requestNotifications,
-                                onRequestLocation = requestLocation,
-                                onStartNoor = {
-                                    onComplete(
-                                        selectedFocus,
-                                        appLanguage,
-                                        activeThemeName,
-                                        requestNotifications,
-                                        requestLocation
-                                    )
-                                }
+                                onRequestLocation = requestLocation
                             )
                         }
                     }
                 }
 
-                // 2. Top Bar with Screen Title & Single-Screen Skip Button
+                // 2. Fixed Top Bar with Step Progress Pill & Skip Button
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
                 ) {
                     // Small step progress pill
                     Surface(
@@ -301,13 +295,66 @@ fun OnboardingScreen(
                     }
                 }
 
-                // 3. Bottom Modern Linear Step Dots
-                Box(
+                // 3. Fixed Bottom Action Bar (Stationary across all pages)
+                Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    dynamicPalette.background.copy(alpha = 0f),
+                                    dynamicPalette.background.copy(alpha = 0.95f),
+                                    dynamicPalette.background
+                                )
+                            )
+                        )
                         .navigationBarsPadding()
-                        .padding(bottom = 16.dp)
+                        .padding(start = 22.dp, end = 22.dp, top = 8.dp, bottom = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Main Primary Action Button (Fixed position above the dots)
+                    Button(
+                        onClick = { advanceToNextOrFinish() },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = dynamicPalette.accent,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .testTag("onboarding_fixed_action_button")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = when (pagerState.currentPage) {
+                                    0 -> if (isArabic) "ابدأ رحلتك الإيمانية" else "Begin Your Journey"
+                                    1 -> if (isArabic) "حفظ ومتابعة" else "Save & Continue"
+                                    2 -> if (isArabic) "متابعة إلى الإعدادات" else "Continue to Setup"
+                                    else -> if (isArabic) "ابدأ باستخدام تطبيق نور" else "Start Using Noor"
+                                },
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 15.5.sp
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    // Modern Linear Step Indicator Dots (Positioned below the button)
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -317,7 +364,7 @@ fun OnboardingScreen(
                             val width = if (isSelected) 24.dp else 7.dp
                             Box(
                                 modifier = Modifier
-                                    .height(6.dp)
+                                    .height(5.dp)
                                     .width(width)
                                     .clip(RoundedCornerShape(3.dp))
                                     .background(
@@ -338,15 +385,14 @@ fun OnboardingScreen(
 @Composable
 private fun CreativeWelcomePage(
     isArabic: Boolean,
-    palette: OnboardingPalette,
-    onBegin: () -> Unit
+    palette: OnboardingPalette
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 28.dp, bottom = 28.dp)
+            .padding(top = 16.dp, bottom = 16.dp)
     ) {
         // Decorative Bismillah Crest & Mosque Silhouette
         Surface(
@@ -440,42 +486,6 @@ private fun CreativeWelcomePage(
                 palette = palette
             )
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Primary Begin Button
-        Button(
-            onClick = onBegin,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = palette.accent,
-                contentColor = Color.White
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = if (isArabic) "ابدأ رحلتك الإيمانية" else "Begin Your Journey",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 15.sp
-                    )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
     }
 }
 
@@ -530,15 +540,14 @@ private fun CreativeFocusPage(
     isArabic: Boolean,
     palette: OnboardingPalette,
     selectedFocus: Set<String>,
-    onToggleFocus: (String) -> Unit,
-    onContinue: () -> Unit
+    onToggleFocus: (String) -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 28.dp, bottom = 28.dp)
+            .padding(top = 16.dp, bottom = 16.dp)
     ) {
         // Section Header
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -609,29 +618,6 @@ private fun CreativeFocusPage(
                 isSelected = selectedFocus.contains("track"),
                 onClick = { onToggleFocus("track") },
                 palette = palette
-            )
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Button(
-            onClick = onContinue,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = palette.accent,
-                contentColor = Color.White
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-        ) {
-            Text(
-                text = if (isArabic) "حفظ ومتابعة" else "Save & Continue",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    fontSize = 15.sp
-                )
             )
         }
     }
@@ -738,15 +724,14 @@ private fun CreativeAmbiencePage(
     activeThemeName: String,
     palette: OnboardingPalette,
     onLanguageChange: (String) -> Unit,
-    onThemeChange: (String) -> Unit,
-    onContinue: () -> Unit
+    onThemeChange: (String) -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 28.dp, bottom = 28.dp)
+            .padding(top = 16.dp, bottom = 16.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -837,29 +822,6 @@ private fun CreativeAmbiencePage(
                     modifier = Modifier.weight(1f)
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Button(
-            onClick = onContinue,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = palette.accent,
-                contentColor = Color.White
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-        ) {
-            Text(
-                text = if (isArabic) "متابعة إلى الإعدادات" else "Continue to Setup",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    fontSize = 15.sp
-                )
-            )
         }
     }
 }
@@ -1094,8 +1056,7 @@ private fun CreativePermissionsPage(
     selectedZoneId: String?,
     onSelectZone: (PrayerZone) -> Unit,
     onRequestNotifications: () -> Unit,
-    onRequestLocation: () -> Unit,
-    onStartNoor: () -> Unit
+    onRequestLocation: () -> Unit
 ) {
     var showManualCity by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -1120,7 +1081,7 @@ private fun CreativePermissionsPage(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 24.dp, bottom = 24.dp)
+            .padding(top = 16.dp, bottom = 16.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -1317,42 +1278,6 @@ private fun CreativePermissionsPage(
                     )
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Primary Start Button
-            Button(
-                onClick = onStartNoor,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = palette.accent,
-                    contentColor = Color.White
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = if (isArabic) "ابدأ باستخدام تطبيق نور" else "Start Using Noor",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = 15.sp
-                        )
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
         } else {
             // Manual City Selection View
             Surface(
@@ -1475,29 +1400,6 @@ private fun CreativePermissionsPage(
                         }
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Button(
-                onClick = onStartNoor,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = palette.accent,
-                    contentColor = Color.White
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-            ) {
-                Text(
-                    text = if (isArabic) "ابدأ باستخدام تطبيق نور" else "Start Using Noor",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 15.sp
-                    )
-                )
             }
         }
     }

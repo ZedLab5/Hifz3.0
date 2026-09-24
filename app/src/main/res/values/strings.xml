@@ -299,7 +299,7 @@
     <!-- Salat Screen -->
     <string name="salat_title">Prayer Time</string>
     <string name="salat_screen_title">Prayer Time</string>
-    <string name="salat_screen_subtitle">Daily schedules, adhan alerts &amp; juristic timings</string>
+    <string name="salat_screen_subtitle">Schedules &amp; Adhan Alerts</string>
     <string name="salat_tab_times">Times</string>
     <string name="salat_tab_streaks">Streaks</string>
     <string name="salat_tab_qada">Qada &amp; Fasting</string>
@@ -307,7 +307,7 @@
     <string name="salat_tab_streaks_pill">Streaks</string>
     <string name="salat_tab_qada_pill">Qada &amp; Fasts</string>
     <string name="salat_date_cd">Hijri Date</string>
-    <string name="salat_sample_hijri_date">15 Sha\'ban 1447 AH • Today</string>
+    <string name="salat_sample_hijri_date">15 Sha\'ban 1447 AH</string>
     <string name="salat_completed_count">%1$d of 5 Done</string>
     <string name="salat_daily_schedule_title">Daily Prayer Schedule</string>
     <string name="salat_daily_schedule_sub">Tap prayer to check-off • Configure alert offset &amp; notifications</string>

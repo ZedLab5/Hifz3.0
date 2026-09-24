@@ -813,13 +813,13 @@ fun KhatmaSetupView(
                                 ) {
                                     Text(
                                         text = "$days Days",
-                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                             color = if (isSelected) KhatmaDarkGold else KhatmaDarkTextPrimary,
                                             fontSize = 13.5.sp
                                         )
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                                     Text(
                                         text = when (days) {
                                             7 -> "Intensive"
@@ -862,7 +862,7 @@ fun KhatmaSetupView(
                                             fontSize = 13.5.sp
                                         )
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                                     Text(
                                         text = "${customDays.roundToInt()} Days",
                                         style = MaterialTheme.typography.labelSmall.copy(

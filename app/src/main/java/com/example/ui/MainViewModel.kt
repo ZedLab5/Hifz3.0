@@ -851,6 +851,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val selectedPrayerZone = MutableStateFlow<PrayerZone>(repository.prayerZones.first())
     val selectedAuthority = MutableStateFlow<CalculationAuthority>(repository.calculationAuthorities.first())
     val isHanafiAsr = MutableStateFlow(false)
+    val showVoluntaryPrayers = MutableStateFlow(true)
     val prayerManualMinuteOffsets = MutableStateFlow<Map<String, Int>>(
         mapOf("Fajr" to 0, "Sunrise" to 0, "Dhuhr" to 0, "Asr" to 0, "Maghrib" to 0, "Isha" to 0)
     )
@@ -935,6 +936,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         schedulePrayerAlarms()
         triggerHaptic()
         showToast(if (enabled) "Hanafi Asr (2x shadow) applied" else "Standard Asr applied")
+    }
+
+    fun toggleShowVoluntaryPrayers(enabled: Boolean) {
+        showVoluntaryPrayers.value = enabled
+        sharedPrefs.edit().putBoolean("show_voluntary_prayers", enabled).apply()
+        triggerHaptic()
     }
 
     val qiyamReminderOffsetMinutes = MutableStateFlow(-45)
@@ -1805,6 +1812,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         isHanafiAsr.value = sharedPrefs.getBoolean("is_hanafi_asr", false)
+        showVoluntaryPrayers.value = sharedPrefs.getBoolean("show_voluntary_prayers", true)
         qiyamReminderOffsetMinutes.value = sharedPrefs.getInt("qiyam_reminder_offset_minutes", -45)
         val loadedOffsets = mutableMapOf<String, Int>()
         listOf("Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha").forEach { pName ->

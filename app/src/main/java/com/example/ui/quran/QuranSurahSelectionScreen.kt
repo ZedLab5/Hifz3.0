@@ -801,7 +801,7 @@ fun SurahListItemCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
 
                 Text(
                     text = "${surah.revelationType} • ${surah.totalVerses} Verses",

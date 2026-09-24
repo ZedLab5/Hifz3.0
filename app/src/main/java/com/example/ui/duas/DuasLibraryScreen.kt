@@ -608,13 +608,13 @@ fun DuaCategorySelectionCard(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing))
 
                     Text(
                         text = category.description,
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = themeColors.translationText,
-                            fontSize = 12.sp
+                            fontSize = 12.5.sp
                         ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

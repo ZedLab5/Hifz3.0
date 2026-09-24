@@ -146,14 +146,14 @@ fun HabitTrackerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .height(42.dp),
+                    .height(46.dp),
                 shape = CircleShape,
-                color = if (isDark) SurfaceElevatedDark else SurfaceElevatedLight
+                color = if (isDark) Color(0xFF1E293B) else Color(0xFFEDF2F7)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(3.dp),
+                        .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     // Tab 0: Tasks
@@ -174,14 +174,14 @@ fun HabitTrackerScreen(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                tint = if (isTasksSelected) Color.White else themeColors.translationText,
+                                tint = if (isTasksSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else Color(0xFF2A4365)),
                                 modifier = Modifier.size(15.dp)
                             )
                             Text(
                                 text = if (isLangArabic) "المهام والعادات" else "Daily Routine",
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = if (isTasksSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isTasksSelected) Color.White else themeColors.translationText,
+                                    color = if (isTasksSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else Color(0xFF2A4365)),
                                     fontSize = 13.sp
                                 )
                             )
@@ -206,14 +206,14 @@ fun HabitTrackerScreen(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = null,
-                                tint = if (isStatsSelected) Color.White else themeColors.translationText,
+                                tint = if (isStatsSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else Color(0xFF2A4365)),
                                 modifier = Modifier.size(15.dp)
                             )
                             Text(
                                 text = if (isLangArabic) "إحصائيات السلسلة" else "Streaks Stats",
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = if (isStatsSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isStatsSelected) Color.White else themeColors.translationText,
+                                    color = if (isStatsSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else Color(0xFF2A4365)),
                                     fontSize = 13.sp
                                 )
                             )
@@ -222,7 +222,7 @@ fun HabitTrackerScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (selectedTab == 0) {
                 // Tasks Tab
@@ -234,7 +234,8 @@ fun HabitTrackerScreen(
                 ) {
                     // Overall Progress Summary Bento Card
                     BentoCard(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -279,6 +280,33 @@ fun HabitTrackerScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
+                        item(key = "swipe_instruction_row") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isLangArabic) "اسحب لليمين للإكمال ✓" else "Swipe right to mark as done ✓",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = if (isDark) Color(0xFF94A3B8).copy(alpha = 0.75f) else Color(0xFF2A4365).copy(alpha = 0.75f),
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                                Text(
+                                    text = if (isLangArabic) "اسحب لليسار للحذف ✕" else "Swipe left to delete ✕",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = if (isDark) Color(0xFF94A3B8).copy(alpha = 0.75f) else Color(0xFF2A4365).copy(alpha = 0.75f),
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
+                        }
+
                         items(habits, key = { it.id }) { habit ->
                             val habitFraction = if (habit.targetCount > 0) (habit.currentCount.toFloat() / habit.targetCount.toFloat()).coerceIn(0f, 1f) else 0f
 
@@ -292,11 +320,11 @@ fun HabitTrackerScreen(
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(16.dp))
+                                        .clip(RoundedCornerShape(24.dp))
                                         .clickable { viewModel.incrementHabit(habit) },
                                     color = themeColors.surface,
                                     border = null,
-                                    shape = RoundedCornerShape(16.dp)
+                                    shape = RoundedCornerShape(24.dp)
                                 ) {
                                     Column(modifier = Modifier.padding(14.dp)) {
                                         Row(
@@ -460,7 +488,7 @@ fun SwipeableHabitRow(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(24.dp))
             .background(Color.Transparent)
     ) {
         // Swipe Backgrounds (Green for Right swipe, Red for Left swipe)
@@ -471,7 +499,7 @@ fun SwipeableHabitRow(
                     .matchParentSize()
                     .background(
                         color = if (offset > 0) Color(0xFF1BA486) else Color(0xFFE53935), // Primary Teal vs Soft Red
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(24.dp)
                     )
                     .padding(horizontal = 20.dp),
                 contentAlignment = if (offset > 0) Alignment.CenterStart else Alignment.CenterEnd

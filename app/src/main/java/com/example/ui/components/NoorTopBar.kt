@@ -185,8 +185,8 @@ fun NoorTopBar(
                     )
                 }
                 .statusBarsPadding()
-                .height(72.dp)
-                .padding(bottom = 6.dp)
+                .height(if (!displaySubtitle.isNullOrBlank()) 78.dp else 70.dp)
+                .padding(bottom = 4.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -228,6 +228,7 @@ fun NoorTopBar(
                             )
 
                             if (!displaySubtitle.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing))
                                 Text(
                                     text = displaySubtitle,
                                     style = MaterialTheme.typography.bodySmall.copy(
@@ -262,5 +263,5 @@ fun NoorTopBar(
  */
 @Composable
 fun BelowTopBarSpacer(modifier: Modifier = Modifier) {
-    Spacer(modifier = modifier.height(18.dp))
+    Spacer(modifier = modifier.height(com.example.ui.theme.NoorSpacing.BelowTopBar))
 }

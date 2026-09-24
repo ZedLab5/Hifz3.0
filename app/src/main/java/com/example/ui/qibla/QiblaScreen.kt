@@ -307,7 +307,7 @@ fun QiblaScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                         val directionLabel = if (isArabic) qiblaInfo.arabicDirection else qiblaInfo.cardinalDirection
                         val declinationText = "${if (activeDeclination >= 0) "+" else ""}${String.format(Locale.US, "%.1f", activeDeclination)}°"
                         Text(
