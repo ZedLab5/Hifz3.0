@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -51,28 +52,39 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DashboardCustomize
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.ui.text.style.TextDirection
@@ -84,8 +96,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -132,6 +150,7 @@ import com.example.R
 import com.example.data.localization.tr
 import com.example.data.model.PrayerTime
 import com.example.data.model.QuickAccessTool
+import com.example.data.model.Surah
 import com.example.data.quran.DuaData
 import com.example.data.quran.KhatmaEngine
 import com.example.data.quran.KhatmaPaceStatus
@@ -1021,7 +1040,7 @@ fun ChronologicalPrayerTracker(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 color = homeColors.innerContainer,
-                border = null
+                border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.5f))
             ) {
                 Box(
                     modifier = Modifier
@@ -2978,6 +2997,7 @@ private fun KhatmaActiveProgressCard(
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = homeColors.innerContainer,
+            border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -3450,19 +3470,13 @@ fun DailyAyahAndDuaShowcase(
             }
         )
 
-        // Daily Ayah - Card with a subtle, elegant gradient gold starting with white-ish color
-        Box(
+        // Daily Ayah - Card with depth and subtle gradient
+        BentoCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .universalCardShadow(
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = 3.dp,
-                    isDark = isDark
-                )
-                .clip(RoundedCornerShape(20.dp))
-                .background(ayahGradient)
-                .padding(18.dp)
+                .padding(horizontal = 16.dp),
+            glowBrush = ayahGradient,
+            contentPadding = PaddingValues(18.dp)
         ) {
             Column {
                 Row(
@@ -3803,21 +3817,15 @@ fun DailyMoodWisdomSection(
             }
         }
 
-        // Wisdom Container wrapped in gradient card matching Ayah of the Day
+        // Wisdom Container wrapped in BentoCard matching Ayah of the Day
         val wisdom = viewModel.getCurrentMoodWisdom()
 
-        Box(
+        BentoCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .universalCardShadow(
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = 3.dp,
-                    isDark = isDark
-                )
-                .clip(RoundedCornerShape(20.dp))
-                .background(cardGradient)
-                .padding(18.dp)
+                .padding(horizontal = 16.dp),
+            glowBrush = cardGradient,
+            contentPadding = PaddingValues(18.dp)
         ) {
             Column(
                 modifier = Modifier.animateContentSize()
@@ -4124,7 +4132,7 @@ fun PremiumUpgradeCard(
 
 
 // ============================================================
-// 8. QURAN AUDIO RECITERS SHOWCASE
+// 8. QURAN RECITERS SHOWCASE (REDIRECT CARD)
 // ============================================================
 
 @Composable
@@ -4137,24 +4145,22 @@ fun QuranRecitersShowcase(
 
     val textPrimary = homeColors.titleText
     val textSecondary = homeColors.subtext
-    val primaryTeal = homeColors.linkText
-    val secondaryGold = homeColors.iconColor
-    val borderDivider = homeColors.dividerBorder
+    val primaryTeal = homeColors.iconColor
 
     val selectedReciter by viewModel.selectedReciter.collectAsStateWithLifecycle()
-    val isAudioPlaying by viewModel.isAudioPlaying.collectAsStateWithLifecycle()
-
-    val reciters = QuranData.reciters
     val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
     val isArabic = appLanguage.equals("Arabic", ignoreCase = true) || appLanguage == "العربية" || appLanguage.startsWith("ar", ignoreCase = true)
 
+    val reciters = remember { QuranData.reciters.take(4) }
+
     Column(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Direct Header Row on page background
+        // Section Header Row
         HomeSectionHeader(
-            title = if (isArabic) "استمع إلى القرآن" else "Listen To The Quran",
-            subtext = if (isArabic) "استمع إلى تلاوات عطرة من كبار القراء" else "Listen to beautiful recitations from top reciters",
+            title = if (isArabic) "القراء والتلاوات القرآنية" else "Quran Reciters & Audio",
+            subtext = if (isArabic) "استمع لتلاوات خاشعة بأصوات كبار القراء" else "Listen to recitations by world-renowned Qaris",
             icon = Icons.Default.Headphones,
             isDark = isDark,
             primaryTeal = primaryTeal,
@@ -4162,149 +4168,463 @@ fun QuranRecitersShowcase(
             textSecondary = textSecondary,
             trailingContent = {
                 HomeSectionActionLabel(
-                    text = if (isArabic) "عرض المزيد" else "View More",
+                    text = if (isArabic) "عرض الكل" else "View All",
                     onClick = { viewModel.navigateTo(NoorDestination.QURAN_RECITERS) },
                     isDark = isDark,
-                    primaryTeal = primaryTeal,
-                    testTag = "reciters_see_more"
+                    primaryTeal = homeColors.linkText,
+                    testTag = "reciters_view_all_button"
                 )
             }
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Edge-to-edge horizontal scrolling row
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-            modifier = Modifier.fillMaxWidth()
+        // Simple, Clean Audio Redirect Card
+        BentoCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .clickable { viewModel.navigateTo(NoorDestination.QURAN_RECITERS) }
+                .testTag("quran_audio_player_home_card"),
+            contentPadding = PaddingValues(18.dp)
         ) {
-            items(reciters) { reciter ->
-                val reciterName = if (isArabic) reciter.nameAr.ifBlank { reciter.name } else reciter.name
-                val reciterStyle = if (isArabic) reciter.styleAr.ifBlank { reciter.style } else reciter.style
-                val isSelected = reciter.id == selectedReciter.id
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Top Audio Banner Row: Clean Avatar + Highly Visible Reciter Name
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Clean Reciter Avatar
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(homeColors.iconBadgeBg)
+                            .border(1.5.dp, primaryTeal.copy(alpha = 0.35f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (selectedReciter.avatarUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = selectedReciter.avatarUrl,
+                                contentDescription = selectedReciter.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Headphones,
+                                contentDescription = null,
+                                tint = primaryTeal,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
 
-                val displayName = remember(reciterName) {
-                    val parts = reciterName.split(" ")
-                    if (parts.size > 2) "${parts.first()} ${parts.last()}" else reciterName
+                    // Highly Visible Reciter Name & Audio Info
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Text(
+                            text = if (isArabic) selectedReciter.nameAr.ifBlank { selectedReciter.name } else selectedReciter.name,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.5.sp,
+                                color = textPrimary
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Text(
+                            text = if (isArabic) "المصحف المرتل الكامل • 114 سورة" else "Full Quran Audio • 114 Surahs",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textSecondary
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .width(78.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            viewModel.selectReciter(reciter)
-                            if (!isAudioPlaying) {
-                                viewModel.playSurahAudio(QuranData.surahs.first(), openPlayer = false)
-                            }
-                        }
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(76.dp)
-                    ) {
-                        // Circular Avatar with ring (link color if selected, divider color if unselected)
-                        Box(
-                            modifier = Modifier
-                                .size(66.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) homeColors.linkText else homeColors.dividerBorder)
-                                .padding(2.5.dp)
-                                .clip(CircleShape)
-                        ) {
-                            if (reciter.avatarUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = reciter.avatarUrl,
-                                    contentDescription = reciterName,
-                                    contentScale = ContentScale.Crop,
-                                    error = reciter.drawableRes?.let { painterResource(it) } ?: painterResource(R.drawable.ic_noor_logo),
-                                    placeholder = reciter.drawableRes?.let { painterResource(it) } ?: painterResource(R.drawable.ic_noor_logo),
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape)
-                                        .background(homeColors.innerContainer)
-                                )
-                            } else if (reciter.drawableRes != null) {
-                                Image(
-                                    painter = painterResource(reciter.drawableRes),
-                                    contentDescription = reciterName,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape)
-                                )
-                            } else {
-                                // Placeholder avatar
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(homeColors.innerContainer),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Mic,
-                                        contentDescription = null,
-                                        tint = homeColors.iconColor,
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                }
-                            }
-                        }
+                HorizontalDivider(color = homeColors.dividerBorder, thickness = 0.8.dp)
 
-                        // Active "Audio" Pill Badge overlapping bottom rim of circle if selected
-                        if (isSelected) {
+                // Featured Reciters with Highly Visible Names
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = if (isArabic) "كبار القراء المتاحون:" else "Featured Reciters:",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp,
+                            color = primaryTeal
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        reciters.forEach { reciter ->
+                            val rName = if (isArabic && reciter.nameAr.isNotBlank()) {
+                                val parts = reciter.nameAr.split(" ")
+                                if (parts.size >= 2) "${parts[0]} ${parts.last()}" else reciter.nameAr
+                            } else {
+                                val parts = reciter.name.split(" ")
+                                if (parts.size >= 2) "${parts[0]} ${parts.last()}" else reciter.name
+                            }
+
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = homeColors.badgeBg,
-                                border = null,
-                                shadowElevation = 2.dp,
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .offset(y = 2.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                color = homeColors.iconBadgeBg,
+                                border = BorderStroke(1.dp, primaryTeal.copy(alpha = 0.25f)),
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Text(
-                                    text = if (isArabic) "صوتي" else "Audio",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = homeColors.badgeText,
+                                    text = rName,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp
+                                        color = textPrimary
                                     ),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                                 )
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                // Single Clean Redirect CTA Button
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = homeColors.progressFill,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(50))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp, horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isArabic) "تصفح القراء واستمع للتلاوات" else "Browse Qaris & Listen",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
-                    Text(
-                        text = displayName,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            color = if (isSelected) homeColors.linkText else textPrimary,
-                            textAlign = TextAlign.Center
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+/**
+ * Animated Equalizer Bars Waveform
+ */
+@Composable
+fun LiveEqualizerBars(
+    isPlaying: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val transition = rememberInfiniteTransition(label = "eq_bars")
+    val h1 by transition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "h1"
+    )
+    val h2 by transition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 0.20f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "h2"
+    )
+    val h3 by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(320, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "h3"
+    )
 
-                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        val barHeights = if (isPlaying) listOf(h1, h2, h3) else listOf(0.3f, 0.4f, 0.3f)
+        barHeights.forEach { fraction ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(fraction)
+                    .clip(RoundedCornerShape(1.dp))
+                    .background(color)
+            )
+        }
+    }
+}
 
-                    Text(
-                        text = reciterStyle.split("•").firstOrNull()?.trim() ?: reciterStyle,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 10.sp,
-                            color = textSecondary,
-                            textAlign = TextAlign.Center
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+/**
+ * Searchable Surah Selection Modal Dialog
+ */
+@Composable
+fun HomeSurahPickerDialog(
+    surahs: List<Surah>,
+    currentSurahNumber: Int,
+    isArabic: Boolean,
+    homeColors: HomePageColors,
+    onSurahSelected: (Surah) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredSurahs = remember(searchQuery, surahs) {
+        if (searchQuery.isBlank()) {
+            surahs
+        } else {
+            val q = searchQuery.trim().lowercase(Locale.ROOT)
+            surahs.filter {
+                it.number.toString().contains(q) ||
+                it.nameEnglish.lowercase(Locale.ROOT).contains(q) ||
+                it.nameArabic.contains(q) ||
+                it.englishMeaning.lowercase(Locale.ROOT).contains(q)
+            }
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = homeColors.outerCardBackground,
+            border = BorderStroke(1.dp, homeColors.dividerBorder),
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .fillMaxHeight(0.75f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = if (isArabic) "اختر سورة للاستماع" else "Select Surah to Play",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = homeColors.titleText
+                            )
+                        )
+                        Text(
+                            text = if (isArabic) "114 سورة كاملة مع تلاوات خاشعة" else "Complete 114 Surahs with streaming",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 12.sp,
+                                color = homeColors.subtext
+                            )
+                        )
+                    }
+
+                    Surface(
+                        shape = CircleShape,
+                        color = homeColors.linkBadgeBg,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .clickable { onDismiss() }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = homeColors.linkText,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = {
+                        Text(
+                            text = if (isArabic) "ابحث برقم أو اسم السورة..." else "Search by name or number...",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 13.5.sp,
+                                color = homeColors.subtext
+                            )
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = homeColors.iconColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = homeColors.iconColor,
+                        unfocusedBorderColor = homeColors.dividerBorder,
+                        focusedContainerColor = homeColors.innerContainer,
+                        unfocusedContainerColor = homeColors.innerContainer
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("surah_picker_search_input")
+                )
+
+                HorizontalDivider(color = homeColors.dividerBorder)
+
+                // Scrollable Surah List
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filteredSurahs) { surah ->
+                        val isSelected = surah.number == currentSurahNumber
+
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isSelected) homeColors.iconBadgeBg else homeColors.innerContainer,
+                            border = BorderStroke(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) homeColors.iconColor else homeColors.dividerBorder
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { onSurahSelected(surah) }
+                                .testTag("surah_picker_item_${surah.number}")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    // Surah number pill
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) homeColors.iconColor else homeColors.linkBadgeBg,
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = "${surah.number}",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp,
+                                                    color = if (isSelected) Color.White else homeColors.linkText
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = if (isArabic) surah.nameArabic else surah.nameEnglish,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.5.sp,
+                                                color = homeColors.titleText
+                                            )
+                                        )
+                                        Text(
+                                            text = "${surah.englishMeaning} • ${surah.totalVerses} ${if (isArabic) "آية" else "Ayahs"}",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontSize = 11.5.sp,
+                                                color = homeColors.subtext
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = surah.nameArabic,
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            fontFamily = QuranArabicFont.AMIRI.fontFamily,
+                                            fontSize = 16.sp,
+                                            color = if (isSelected) homeColors.iconColor else homeColors.titleText
+                                        )
+                                    )
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Playing",
+                                            tint = homeColors.iconColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

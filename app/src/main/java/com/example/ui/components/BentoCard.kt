@@ -58,7 +58,7 @@ fun BentoCard(
     backgroundColor: Color = Color.Unspecified,
     borderColor: Color = Color.Transparent,
     borderWidth: Dp = 0.dp,
-    elevation: Dp = 2.dp,
+    elevation: Dp = 4.dp,
     hasGlow: Boolean = false,
     glowBrush: Brush? = null,
     onClick: (() -> Unit)? = null,
@@ -75,30 +75,59 @@ fun BentoCard(
         homeColors.outerCardBackground
     }
 
-    val resolvedBorderColor = if (borderColor != Color.Unspecified) {
-        borderColor
-    } else {
-        Color.Transparent
-    }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && onClick != null) 0.985f else 1.0f,
+        label = "bentoScale"
+    )
 
+    val currentElevation by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (isPressed && onClick != null) 1.5.dp else elevation.coerceAtLeast(3.5.dp),
+        label = "bentoElevation"
+    )
+
+    // Subtle physical surface micro-gradient that gives lighting depth without changing colors
     val cardBackgroundModifier = if (glowBrush != null) {
         Modifier.background(glowBrush)
+    } else if (backgroundColor == Color.Unspecified || backgroundColor == homeColors.outerCardBackground) {
+        if (isDark) {
+            Modifier.background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF1E242B),
+                        Color(0xFF171A20)
+                    )
+                )
+            )
+        } else {
+            Modifier.background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFFFFFFFF),
+                        Color(0xFFFAFCFA)
+                    )
+                )
+            )
+        }
     } else {
         Modifier.background(resolvedBgColor)
     }
 
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && onClick != null) 0.98f else 1.0f,
-        label = "bentoScale"
-    )
-
-    val borderModifier = Modifier
+    // Precise rim stroke for physical separation and tactile depth
+    val borderModifier = if (borderWidth > 0.dp && borderColor != Color.Transparent) {
+        Modifier.border(borderWidth, borderColor, shape)
+    } else {
+        if (isDark) {
+            Modifier.border(1.dp, Color(0xFF28303A), shape)
+        } else {
+            Modifier.border(1.dp, Color(0xFFECEFF1), shape)
+        }
+    }
 
     val shadowModifier = Modifier.universalCardShadow(
         shape = shape,
-        elevation = elevation,
+        elevation = currentElevation,
         isDark = isDark
     )
 
@@ -113,7 +142,7 @@ fun BentoCard(
                 if (onClick != null) {
                     Modifier.clickable(
                         interactionSource = interactionSource,
-                        indication = null,
+                        indication = androidx.compose.material3.ripple(),
                         onClick = onClick
                     )
                 } else Modifier
@@ -149,26 +178,26 @@ fun GoldBadge(
 
 /**
  * Universal shadow for all cards across the Home screen.
- * Consistent spot & ambient shadow parameters in light mode, with balanced elevation.
+ * Consistent spot & ambient shadow parameters with clear, rich material elevation.
  */
 fun Modifier.universalCardShadow(
     shape: Shape = RoundedCornerShape(20.dp),
-    elevation: Dp = 4.dp,
+    elevation: Dp = 6.dp,
     isDark: Boolean = false
 ): Modifier {
     return if (isDark) {
         this.shadow(
-            elevation = 2.dp,
+            elevation = elevation.coerceAtLeast(4.dp),
             shape = shape,
-            ambientColor = Color.Black.copy(alpha = 0.35f),
-            spotColor = Color.Black.copy(alpha = 0.45f)
+            ambientColor = Color.Black.copy(alpha = 0.55f),
+            spotColor = Color.Black.copy(alpha = 0.75f)
         )
     } else {
         this.shadow(
-            elevation = elevation.coerceAtLeast(4.dp),
+            elevation = elevation.coerceAtLeast(6.dp),
             shape = shape,
-            ambientColor = Color.Black.copy(alpha = 0.04f),
-            spotColor = Color.Black.copy(alpha = 0.12f)
+            ambientColor = Color(0xFF14241E).copy(alpha = 0.12f),
+            spotColor = Color(0xFF0D1B15).copy(alpha = 0.20f)
         )
     }
 }

@@ -2864,6 +2864,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun togglePlayPauseAudio() {
+        toggleAudioPlayback()
+    }
+
     fun pauseAudio() {
         try {
             if (mediaPlayer?.isPlaying == true) {
@@ -2916,6 +2920,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             mp.seekTo(target)
             audioCurrentPositionMs.value = target
             val dur = audioDurationMs.value
+            if (dur > 0) {
+                audioProgress.value = (target.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
+            }
+            triggerHaptic()
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
+    fun skipForward10Seconds() {
+        val mp = mediaPlayer ?: return
+        try {
+            val cur = mp.currentPosition
+            val dur = audioDurationMs.value
+            val target = (cur + 10000).let { if (dur > 0) it.coerceAtMost(dur) else it }
+            mp.seekTo(target)
+            audioCurrentPositionMs.value = target
             if (dur > 0) {
                 audioProgress.value = (target.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
             }

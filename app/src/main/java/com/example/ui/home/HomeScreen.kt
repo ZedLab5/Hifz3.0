@@ -67,6 +67,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -465,12 +466,14 @@ private fun HomeHeaderRow(
             Surface(
                 modifier = Modifier
                     .size(40.dp)
+                    .universalCardShadow(shape = CircleShape, elevation = 2.dp, isDark = isDark)
+                    .clip(CircleShape)
                     .clickable { viewModel.navigateTo(NoorDestination.PROFILE) }
                     .testTag("header_menu_button"),
                 shape = CircleShape,
                 color = surfaceColor,
                 shadowElevation = 0.dp,
-                border = null
+                border = BorderStroke(1.dp, borderDivider.copy(alpha = 0.7f))
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -514,6 +517,8 @@ private fun HomeHeaderRow(
             Surface(
                 modifier = Modifier
                     .size(40.dp)
+                    .universalCardShadow(shape = CircleShape, elevation = 2.dp, isDark = isDark)
+                    .clip(CircleShape)
                     .clickable { viewModel.openCustomizeHomeSheet() }
                     .testTag("header_customize_button")
                     .then(
@@ -524,7 +529,7 @@ private fun HomeHeaderRow(
                 shape = CircleShape,
                 color = surfaceColor,
                 shadowElevation = 0.dp,
-                border = null
+                border = BorderStroke(1.dp, borderDivider.copy(alpha = 0.7f))
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -539,12 +544,14 @@ private fun HomeHeaderRow(
             Surface(
                 modifier = Modifier
                     .size(40.dp)
+                    .universalCardShadow(shape = CircleShape, elevation = 2.dp, isDark = isDark)
+                    .clip(CircleShape)
                     .clickable { viewModel.openSettingsModal() }
                     .testTag("header_settings_button"),
                 shape = CircleShape,
                 color = surfaceColor,
                 shadowElevation = 0.dp,
-                border = null
+                border = BorderStroke(1.dp, borderDivider.copy(alpha = 0.7f))
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -577,14 +584,16 @@ private fun HomePermissionNoticeBanner(
     textSecondary: Color,
     modifier: Modifier = Modifier
 ) {
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .universalCardShadow(shape = RoundedCornerShape(16.dp), elevation = 3.dp, isDark = isDark)
             .clip(RoundedCornerShape(16.dp))
             .clickable { onAction() },
         shape = RoundedCornerShape(16.dp),
         color = surfaceColor,
-        border = BorderStroke(1.dp, borderDivider),
+        border = BorderStroke(1.dp, borderDivider.copy(alpha = 0.8f)),
         shadowElevation = 0.dp
     ) {
         Row(
@@ -738,10 +747,11 @@ private fun HeroNextPrayerCard(
             .padding(horizontal = 16.dp)
             .universalCardShadow(
                 shape = RoundedCornerShape(24.dp),
-                elevation = 4.dp,
+                elevation = 8.dp,
                 isDark = isDark
             )
             .clip(RoundedCornerShape(24.dp))
+            .border(1.dp, borderDivider.copy(alpha = 0.6f), RoundedCornerShape(24.dp))
             .background(Color.Black)
     ) {
         // Hero background image (mosque photo) ALWAYS present in background
@@ -1021,23 +1031,14 @@ private fun TopFeaturesSection(
     }
 
     // Entire Quick Access content is unified inside a single premium card container
-    Surface(
+    BentoCard(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .universalCardShadow(
-                shape = RoundedCornerShape(20.dp),
-                elevation = 4.dp,
-                isDark = isDark
-            ),
-        shape = RoundedCornerShape(20.dp),
-        color = homeColors.outerCardBackground,
-        shadowElevation = 0.dp
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(16.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(all = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Section header row matching Daily Activity design perfectly
@@ -1101,7 +1102,8 @@ private fun TopFeaturesSection(
                             modifier = Modifier
                                 .size(50.dp)
                                 .clip(CircleShape)
-                                .background(toolBg),
+                                .background(toolBg)
+                                .border(1.dp, homeColors.dividerBorder.copy(alpha = 0.7f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1262,6 +1264,7 @@ private fun DailyActivitySection(
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = homeColors.innerContainer,
+                        border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.8f)),
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(16.dp))
@@ -1350,6 +1353,7 @@ private fun DailyActivitySection(
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = homeColors.innerContainer,
+                        border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.8f)),
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(16.dp))
@@ -1444,6 +1448,7 @@ private fun DailyActivitySection(
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = homeColors.innerContainer,
+                        border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.8f)),
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(16.dp))
@@ -1532,6 +1537,7 @@ private fun DailyActivitySection(
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = homeColors.innerContainer,
+                        border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.8f)),
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(16.dp))
