@@ -103,6 +103,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.DailyHabitEntity
+import com.example.data.model.PrayerTime
 import com.example.ui.MainViewModel
 import com.example.ui.components.BentoCard
 import com.example.ui.components.NoorGlassIconButton
@@ -128,13 +129,6 @@ private val GoldBadgeBg = Color(0xFFFBF0DC)
 private val SurfaceCanvasLight = Color(0xFFF6F8F7)
 private val NeutralBorderLight = Color(0xFFECEFF1)
 
-// Calendar Style View Modes
-private enum class CalendarViewMode {
-    DAY_TIMELINE,
-    SCHEDULE_AGENDA,
-    MONTH_GRID
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HabitTrackerScreen(
@@ -157,9 +151,11 @@ fun HabitTrackerScreen(
     val today = remember { LocalDate.now() }
     val isViewingToday = selectedDate == today
 
-    // Calendar View State
-    var calendarViewMode by remember { mutableStateOf(CalendarViewMode.DAY_TIMELINE) }
-    var calendarSelectedDate by remember { mutableStateOf(LocalDate.now()) }
+    val todayPrayerTimes by viewModel.prayerTimes.collectAsStateWithLifecycle()
+    val prayerTimesForSelectedDate = remember(selectedDate, todayPrayerTimes) {
+        viewModel.getPrayerTimesForDate(selectedDate)
+    }
+
     var currentYearMonth by remember { mutableStateOf(YearMonth.now()) }
 
     // Dialog States
@@ -239,7 +235,7 @@ fun HabitTrackerScreen(
                         NoorGlassIconButton(
                             onClick = {
                                 preselectedAddDateIso = if (selectedTab == 1) {
-                                    calendarSelectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                                    selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                                 } else null
                                 preselectedAddHour = null
                                 showAddDialog = true
@@ -256,7 +252,7 @@ fun HabitTrackerScreen(
                 FloatingActionButton(
                     onClick = {
                         preselectedAddDateIso = if (selectedTab == 1) {
-                            calendarSelectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                            selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                         } else null
                         preselectedAddHour = null
                         showAddDialog = true
@@ -440,6 +436,7 @@ fun HabitTrackerScreen(
                     selectedDate = selectedDate,
                     today = today,
                     habits = habits,
+                    prayerTimes = prayerTimesForSelectedDate,
                     isDark = isDark,
                     isArabic = isLangArabic,
                     onIncrementHabit = { viewModel.incrementHabit(it) },
@@ -530,372 +527,6 @@ fun HabitTrackerScreen(
 }
 
 // -----------------------------------------------------------------------------------------
-// Calendar Complete View Experience
-// -----------------------------------------------------------------------------------------
-
-@Composable
-private fun CalendarExperience(
-    viewMode: CalendarViewMode,
-    currentYearMonth: YearMonth,
-    selectedDate: LocalDate,
-    habits: List<DailyHabitEntity>,
-    isDark: Boolean,
-    isArabic: Boolean,
-    onViewModeChange: (CalendarViewMode) -> Unit,
-    onSelectDate: (LocalDate) -> Unit,
-    onPreviousMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-    onJumpToToday: () -> Unit,
-    onIncrementHabit: (DailyHabitEntity) -> Unit,
-    onMarkDoneHabit: (DailyHabitEntity) -> Unit,
-    onTogglePinHabit: (DailyHabitEntity) -> Unit,
-    onEditHabitSchedule: (DailyHabitEntity) -> Unit,
-    onDeleteHabit: (DailyHabitEntity) -> Unit,
-    onAddNewRoutineForSlot: (LocalDate, Int?) -> Unit
-) {
-    val today = remember { LocalDate.now() }
-    val monthTitleFormatter = remember(isArabic) {
-        DateTimeFormatter.ofPattern("MMMM yyyy", if (isArabic) Locale("ar") else Locale.ENGLISH)
-    }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        // 1. Calendar Style App Header Bar
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(18.dp),
-            color = if (isDark) Color(0xFF1E293B) else Color.White,
-            border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else NeutralBorderLight)
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Month title with navigation
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = currentYearMonth.format(monthTitleFormatter),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = if (isDark) Color.White else SoftNavyText
-                            )
-                        )
-
-                        IconButton(onClick = onPreviousMonth, modifier = Modifier.size(28.dp)) {
-                            Icon(
-                                imageVector = if (isArabic) Icons.AutoMirrored.Filled.ArrowForward else Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Prev Month",
-                                tint = PrimaryTeal,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        IconButton(onClick = onNextMonth, modifier = Modifier.size(28.dp)) {
-                            Icon(
-                                imageVector = if (isArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "Next Month",
-                                tint = PrimaryTeal,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
-                    // Iconic "Today" Avatar Button
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isDark) Color(0xFF334155) else TealTintBg,
-                        border = BorderStroke(1.dp, PrimaryTeal.copy(alpha = 0.5f)),
-                        modifier = Modifier.clickable { onJumpToToday() }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarToday,
-                                contentDescription = "Jump to Today",
-                                tint = PrimaryTeal,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Text(
-                                text = "${today.dayOfMonth} ${if (isArabic) "اليوم" else "Today"}",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = PrimaryTeal
-                                )
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // 2. Calendar View Mode Switcher (Day Timeline | Schedule Agenda | Month Grid)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isDark) Color(0xFF0F172A) else SoftNavyPillBg)
-                        .padding(2.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    CalendarModeChip(
-                        label = if (isArabic) "اليوم والجدول" else "Day Timeline",
-                        icon = Icons.Default.ViewDay,
-                        isSelected = viewMode == CalendarViewMode.DAY_TIMELINE,
-                        onClick = { onViewModeChange(CalendarViewMode.DAY_TIMELINE) },
-                        modifier = Modifier.weight(1f),
-                        isDark = isDark
-                    )
-
-                    CalendarModeChip(
-                        label = if (isArabic) "الأجندة" else "Schedule",
-                        icon = Icons.Default.ViewAgenda,
-                        isSelected = viewMode == CalendarViewMode.SCHEDULE_AGENDA,
-                        onClick = { onViewModeChange(CalendarViewMode.SCHEDULE_AGENDA) },
-                        modifier = Modifier.weight(1f),
-                        isDark = isDark
-                    )
-
-                    CalendarModeChip(
-                        label = if (isArabic) "الشهر" else "Month",
-                        icon = Icons.Default.CalendarMonth,
-                        isSelected = viewMode == CalendarViewMode.MONTH_GRID,
-                        onClick = { onViewModeChange(CalendarViewMode.MONTH_GRID) },
-                        modifier = Modifier.weight(1f),
-                        isDark = isDark
-                    )
-                }
-            }
-        }
-
-        // 3. Calendar 7-Day Week Carousel Header
-        CalendarWeekHeader(
-            selectedDate = selectedDate,
-            today = today,
-            habits = habits,
-            isDark = isDark,
-            isArabic = isArabic,
-            onSelectDate = onSelectDate
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // 4. Main Calendar Content by View Mode
-        when (viewMode) {
-            CalendarViewMode.DAY_TIMELINE -> {
-                CalendarDayTimeline(
-                    selectedDate = selectedDate,
-                    today = today,
-                    habits = habits,
-                    isDark = isDark,
-                    isArabic = isArabic,
-                    onIncrementHabit = onIncrementHabit,
-                    onMarkDoneHabit = onMarkDoneHabit,
-                    onTogglePinHabit = onTogglePinHabit,
-                    onEditHabitSchedule = onEditHabitSchedule,
-                    onDeleteHabit = onDeleteHabit,
-                    onAddNewRoutineForSlot = onAddNewRoutineForSlot
-                )
-            }
-            CalendarViewMode.SCHEDULE_AGENDA -> {
-                CalendarScheduleAgenda(
-                    selectedDate = selectedDate,
-                    today = today,
-                    habits = habits,
-                    isDark = isDark,
-                    isArabic = isArabic,
-                    onSelectDate = onSelectDate,
-                    onIncrementHabit = onIncrementHabit,
-                    onMarkDoneHabit = onMarkDoneHabit,
-                    onTogglePinHabit = onTogglePinHabit,
-                    onEditHabitSchedule = onEditHabitSchedule,
-                    onDeleteHabit = onDeleteHabit,
-                    onAddNewRoutineForSlot = onAddNewRoutineForSlot
-                )
-            }
-            CalendarViewMode.MONTH_GRID -> {
-                CalendarMonthGrid(
-                    currentYearMonth = currentYearMonth,
-                    selectedDate = selectedDate,
-                    today = today,
-                    habits = habits,
-                    isDark = isDark,
-                    isArabic = isArabic,
-                    onSelectDate = {
-                        onSelectDate(it)
-                        onViewModeChange(CalendarViewMode.DAY_TIMELINE)
-                    },
-                    onIncrementHabit = onIncrementHabit,
-                    onMarkDoneHabit = onMarkDoneHabit,
-                    onTogglePinHabit = onTogglePinHabit,
-                    onEditHabitSchedule = onEditHabitSchedule,
-                    onDeleteHabit = onDeleteHabit
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CalendarModeChip(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isDark: Boolean
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isSelected) PrimaryTeal else Color.Transparent)
-            .clickable { onClick() }
-            .padding(vertical = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                modifier = Modifier.size(13.dp)
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 11.sp,
-                    color = if (isSelected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText)
-                )
-            )
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------------------
-// Calendar 7-Day Carousel Header Strip
-// -----------------------------------------------------------------------------------------
-
-@Composable
-private fun CalendarWeekHeader(
-    selectedDate: LocalDate,
-    today: LocalDate,
-    habits: List<DailyHabitEntity>,
-    isDark: Boolean,
-    isArabic: Boolean,
-    onSelectDate: (LocalDate) -> Unit
-) {
-    // Current week window around selected date (Monday to Sunday)
-    val startOfWeek = selectedDate.minusDays((selectedDate.dayOfWeek.value - 1).toLong())
-    val weekDays = remember(startOfWeek) {
-        (0..6).map { startOfWeek.plusDays(it.toLong()) }
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp, horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-            weekDays.forEach { date ->
-                val isSelected = date == selectedDate
-                val isCellToday = date == today
-
-                val dayOfWeek = date.dayOfWeek
-                val bitIndex = when (dayOfWeek) {
-                    DayOfWeek.MONDAY -> 0
-                    DayOfWeek.TUESDAY -> 1
-                    DayOfWeek.WEDNESDAY -> 2
-                    DayOfWeek.THURSDAY -> 3
-                    DayOfWeek.FRIDAY -> 4
-                    DayOfWeek.SATURDAY -> 5
-                    DayOfWeek.SUNDAY -> 6
-                }
-                val dateIso = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                val dayHabits = habits.filter { habit ->
-                    if (!habit.targetDateIso.isNullOrBlank()) {
-                        habit.targetDateIso == dateIso
-                    } else {
-                        (habit.pinnedDaysMask and (1 shl bitIndex)) != 0
-                    }
-                }
-                val hasPinned = dayHabits.any { it.pinnedToPlanner }
-                val hasHabits = dayHabits.isNotEmpty()
-
-                val dayLabel = if (isArabic) {
-                    when (dayOfWeek) {
-                        DayOfWeek.MONDAY -> "إثن"
-                        DayOfWeek.TUESDAY -> "ثلا"
-                        DayOfWeek.WEDNESDAY -> "أرب"
-                        DayOfWeek.THURSDAY -> "خمي"
-                        DayOfWeek.FRIDAY -> "جمع"
-                        DayOfWeek.SATURDAY -> "سبت"
-                        DayOfWeek.SUNDAY -> "أحد"
-                    }
-                } else {
-                    dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH).take(1).uppercase()
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(CircleShape)
-                        .background(
-                            when {
-                                isSelected -> PrimaryTeal
-                                isCellToday -> if (isDark) Color(0xFF334155) else TealTintBg
-                                else -> if (isDark) Color(0xFF0F172A) else SoftNavyPillBg.copy(alpha = 0.6f)
-                            }
-                        )
-                        .border(
-                            width = if (isCellToday && !isSelected) 1.5.dp else 0.dp,
-                            color = if (isCellToday && !isSelected) PrimaryTeal else Color.Transparent,
-                            shape = CircleShape
-                        )
-                        .clickable { onSelectDate(date) }
-                        .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = dayLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 11.sp,
-                                color = if (isSelected) Color.White.copy(alpha = 0.85f) else (if (isCellToday) PrimaryTeal else (if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A)))
-                            )
-                        )
-                        Text(
-                            text = date.dayOfMonth.toString(),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = if (isSelected) Color.White else (if (isCellToday) PrimaryTeal else (if (isDark) Color(0xFFF1F5F9) else SoftNavyText))
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-// -----------------------------------------------------------------------------------------
 // 1. Day Timeline View (Hour-by-hour 24h Grid)
 // -----------------------------------------------------------------------------------------
 
@@ -906,6 +537,7 @@ private fun CalendarDayTimeline(
     selectedDate: LocalDate,
     today: LocalDate,
     habits: List<DailyHabitEntity>,
+    prayerTimes: List<PrayerTime> = emptyList(),
     isDark: Boolean,
     isArabic: Boolean,
     onIncrementHabit: (DailyHabitEntity) -> Unit,
@@ -1023,18 +655,24 @@ private fun CalendarDayTimeline(
                             .background(if (isDark) Color(0xFF334155) else NeutralBorderLight)
                     )
 
-                    // Prayer / Time-of-Day Context Marker
-                    val prayerMarker = when (hour) {
-                        5 -> Pair(if (isArabic) "صلاة الفجر 🌅" else "Fajr Prayer 🌅", "05:15 AM")
-                        6 -> Pair(if (isArabic) "الشروق ☀️" else "Sunrise ☀️", "06:30 AM")
-                        12 -> Pair(if (isArabic) "صلاة الظهر ☀️" else "Dhuhr Prayer ☀️", "12:30 PM")
-                        16 -> Pair(if (isArabic) "صلاة العصر 🌤️" else "Asr Prayer 🌤️", "04:30 PM")
-                        18 -> Pair(if (isArabic) "صلاة المغرب 🌇" else "Maghrib Prayer 🌇", "06:15 PM")
-                        20 -> Pair(if (isArabic) "صلاة العشاء 🌙" else "Isha Prayer 🌙", "08:15 PM")
-                        else -> null
-                    }
+                    // Prayer / Time-of-Day Context Marker from real computed prayer times
+                    val prayersInSlot = prayerTimes.filter { it.hour == hour }
+                    prayersInSlot.forEach { pt ->
+                        val emoji = when (pt.name) {
+                            "Fajr" -> "🌅"
+                            "Sunrise" -> "☀️"
+                            "Dhuhr" -> "☀️"
+                            "Asr" -> "🌤️"
+                            "Maghrib" -> "🌇"
+                            "Isha" -> "🌙"
+                            else -> "🕌"
+                        }
+                        val title = if (isArabic) {
+                            if (pt.name == "Sunrise") "${pt.arabicName} $emoji" else "صلاة ${pt.arabicName} $emoji"
+                        } else {
+                            if (pt.name == "Sunrise") "${pt.name} $emoji" else "${pt.name} Prayer $emoji"
+                        }
 
-                    if (prayerMarker != null) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = if (isDark) Color(0xFF1E293B) else TealTintBg,
@@ -1047,7 +685,7 @@ private fun CalendarDayTimeline(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = prayerMarker.first,
+                                    text = title,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = PrimaryTeal,
@@ -1055,7 +693,7 @@ private fun CalendarDayTimeline(
                                     )
                                 )
                                 Text(
-                                    text = prayerMarker.second,
+                                    text = pt.timeString,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Medium,
                                         color = if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A),
@@ -1225,155 +863,6 @@ private fun ViewSelectorTabs(
                             color = if (is1Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
                             fontSize = 13.sp
                         )
-                    )
-                }
-            }
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------------------
-// 2. Schedule (Agenda) Stream View
-// -----------------------------------------------------------------------------------------
-
-@Composable
-private fun CalendarScheduleAgenda(
-    selectedDate: LocalDate,
-    today: LocalDate,
-    habits: List<DailyHabitEntity>,
-    isDark: Boolean,
-    isArabic: Boolean,
-    onSelectDate: (LocalDate) -> Unit,
-    onIncrementHabit: (DailyHabitEntity) -> Unit,
-    onMarkDoneHabit: (DailyHabitEntity) -> Unit,
-    onTogglePinHabit: (DailyHabitEntity) -> Unit,
-    onEditHabitSchedule: (DailyHabitEntity) -> Unit,
-    onDeleteHabit: (DailyHabitEntity) -> Unit,
-    onAddNewRoutineForSlot: (LocalDate, Int?) -> Unit
-) {
-    // Generate consecutive 14 days starting from today
-    val daysStream = remember(today) {
-        (0..13).map { today.plusDays(it.toLong()) }
-    }
-
-    val dayHeaderFormatter = remember(isArabic) {
-        DateTimeFormatter.ofPattern("EEEE, d MMMM", if (isArabic) Locale("ar") else Locale.ENGLISH)
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 86.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        daysStream.forEach { date ->
-            val isCurrentToday = date == today
-            val dateDayOfWeek = date.dayOfWeek
-            val bitIndex = when (dateDayOfWeek) {
-                DayOfWeek.MONDAY -> 0
-                DayOfWeek.TUESDAY -> 1
-                DayOfWeek.WEDNESDAY -> 2
-                DayOfWeek.THURSDAY -> 3
-                DayOfWeek.FRIDAY -> 4
-                DayOfWeek.SATURDAY -> 5
-                DayOfWeek.SUNDAY -> 6
-            }
-            val dateIso = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-            val streamHabits = habits.filter { habit ->
-                if (!habit.targetDateIso.isNullOrBlank()) {
-                    habit.targetDateIso == dateIso
-                } else {
-                    (habit.pinnedDaysMask and (1 shl bitIndex)) != 0
-                }
-            }.sortedBy { it.scheduledTimeMinutes ?: 9999 }
-
-            item(key = "agenda_day_header_$dateIso") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Date Badge
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(if (isCurrentToday) PrimaryTeal else (if (isDark) Color(0xFF334155) else SoftNavyPillBg)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = date.dayOfMonth.toString(),
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = if (isCurrentToday) Color.White else (if (isDark) Color.White else SoftNavyText)
-                                )
-                            )
-                        }
-
-                        Column {
-                            Text(
-                                text = if (isCurrentToday) (if (isArabic) "اليوم الحاضر" else "TODAY") else date.format(dayHeaderFormatter).uppercase(),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = if (isCurrentToday) PrimaryTeal else (if (isDark) Color(0xFF94A3B8) else SoftNavyText)
-                                )
-                            )
-                            Text(
-                                text = date.format(dayHeaderFormatter),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 12.sp,
-                                    color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF1F1F1F)
-                                )
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = { onAddNewRoutineForSlot(date, null) },
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add", tint = PrimaryTeal, modifier = Modifier.size(16.dp))
-                    }
-                }
-            }
-
-            if (streamHabits.isEmpty()) {
-                item(key = "agenda_empty_$dateIso") {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isDark) Color(0xFF1E293B) else Color.White,
-                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else NeutralBorderLight),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = if (isArabic) "لا توجد أوراد مجدولة • انقر على + لإضافة ورد" else "No routines scheduled • Tap + to add",
-                            modifier = Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = if (isDark) Color(0xFF64748B) else Color(0xFF9E9E9E),
-                                fontSize = 11.sp
-                            )
-                        )
-                    }
-                }
-            } else {
-                items(streamHabits, key = { "agenda_habit_${dateIso}_${it.id}" }) { habit ->
-                    CalendarEventCard(
-                        habit = habit,
-                        isDark = isDark,
-                        isArabic = isArabic,
-                        onIncrement = { onIncrementHabit(habit) },
-                        onMarkDone = { onMarkDoneHabit(habit) },
-                        onTogglePin = { onTogglePinHabit(habit) },
-                        onEditSchedule = { onEditHabitSchedule(habit) },
-                        onDelete = { onDeleteHabit(habit) }
                     )
                 }
             }
@@ -1892,67 +1381,6 @@ private fun CalendarEventCard(
     }
 }
 
-@Composable
-private fun CalendarEventChip(
-    habit: DailyHabitEntity,
-    isDark: Boolean,
-    isArabic: Boolean,
-    onIncrement: () -> Unit,
-    onMarkDone: () -> Unit,
-    onTogglePin: () -> Unit,
-    onEditSchedule: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = if (habit.pinnedToPlanner) GoldBadgeBg else (if (isDark) Color(0xFF0F3E34) else TealTintBg),
-        border = BorderStroke(1.dp, if (habit.pinnedToPlanner) GoldBadgeText.copy(alpha = 0.4f) else PrimaryTeal.copy(alpha = 0.3f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onIncrement() }
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = if (habit.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.Circle,
-                    contentDescription = null,
-                    tint = if (habit.isCompleted) PrimaryTeal else Color(0xFF9E9E9E),
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clickable { if (habit.isCompleted) onIncrement() else onMarkDone() }
-                )
-                Text(
-                    text = habit.title,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = if (isDark) Color.White else Color(0xFF1F1F1F)
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Text(
-                text = "${habit.currentCount}/${habit.targetCount}",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = PrimaryTeal,
-                    fontSize = 11.sp
-                )
-            )
-        }
-    }
-}
-
 // -----------------------------------------------------------------------------------------
 // Sub-components: Horizon Strip, Agenda Banner, Habit Item Card, Swipeable Row
 // -----------------------------------------------------------------------------------------
@@ -2102,116 +1530,6 @@ private fun CalendarHorizonStrip(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlannerAgendaBanner(
-    selectedDate: LocalDate,
-    isToday: Boolean,
-    pinnedCount: Int,
-    completedPinnedCount: Int,
-    pinnedProgress: Float,
-    isDark: Boolean,
-    isArabic: Boolean,
-    onJumpToToday: () -> Unit
-) {
-    val dateFormatter = remember(isArabic) {
-        DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", if (isArabic) Locale("ar") else Locale.ENGLISH)
-    }
-
-    BentoCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isToday) TealTintBg else (if (isDark) Color(0xFF334155) else SoftNavyPillBg)
-                        ) {
-                            Text(
-                                text = if (isToday) (if (isArabic) "اليوم الحاضر" else "Today's Agenda") else (if (isArabic) "خطة اليوم المحدد" else "Planner View"),
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isToday) PrimaryTeal else SoftNavyText,
-                                    fontSize = 10.5.sp
-                                )
-                            )
-                        }
-                    }
-
-                    TitleSubtextSpacer()
-
-                    Text(
-                        text = selectedDate.format(dateFormatter),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1F1F1F),
-                            fontSize = 14.5.sp
-                        )
-                    )
-                }
-
-                if (pinnedCount > 0) {
-                    RadialProgressRing(
-                        progress = pinnedProgress,
-                        modifier = Modifier.size(54.dp),
-                        strokeWidth = 6.dp
-                    ) {
-                        Text(
-                            text = "$completedPinnedCount/$pinnedCount",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) Color(0xFFF1F5F9) else SoftNavyText,
-                                fontSize = 11.sp
-                            )
-                        )
-                    }
-                }
-            }
-
-            Text(
-                text = if (pinnedCount > 0) {
-                    if (pinnedProgress >= 1f) {
-                        if (isArabic) "ما شاء الله! أنجزت جميع مهام الورد اليومية المخططة! 🌟" else "Masha'Allah! All scheduled routine tasks accomplished! 🌟"
-                    } else {
-                        if (isArabic) "لديك $pinnedCount مهام مثبتة لهذا اليوم ($completedPinnedCount منجزة)." else "You have $pinnedCount pinned tasks on your agenda ($completedPinnedCount completed)."
-                    }
-                } else {
-                    if (isArabic) "لا توجد مهام مثبتة لهذا اليوم. انقر على أيقونة الدبوس 📌 لتثبيت مهامك." else "No tasks pinned for this day yet. Tap the 📌 icon on any routine to pin it."
-                },
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A),
-                    fontSize = 12.sp
-                )
-            )
-
-            if (pinnedCount > 0) {
-                LinearProgressIndicator(
-                    progress = { pinnedProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp)),
-                    color = PrimaryTeal,
-                    trackColor = if (isDark) Color(0xFF334155) else TealTintBg
-                )
             }
         }
     }
@@ -2542,6 +1860,12 @@ private fun AddHabitPlannerDialog(
     var targetDateIso by remember { mutableStateOf(initialTargetDateIso) }
     var notes by remember { mutableStateOf("") }
 
+    val daysOfWeekLabels = if (isArabic) {
+        listOf("إثن", "ثلا", "أرب", "خمي", "جمع", "سبت", "أحد")
+    } else {
+        listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    }
+
     val categories = listOf("Quran", "Dhikr", "Salah", "Sunnah", "Charity", "Knowledge")
 
     AlertDialog(
@@ -2660,6 +1984,91 @@ private fun AddHabitPlannerDialog(
                                 checkedTrackColor = PrimaryTeal
                             )
                         )
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = if (isArabic) "أيام التكرار الأسبوعي" else "Weekly Recurrence Days",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = if (isDark) Color(0xFF94A3B8) else SoftNavyText)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        daysOfWeekLabels.forEachIndexed { index, label ->
+                            val isDayActive = (daysMask and (1 shl index)) != 0
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isDayActive) PrimaryTeal
+                                        else if (isDark) Color(0xFF334155)
+                                        else SoftNavyPillBg
+                                    )
+                                    .clickable {
+                                        daysMask = if (isDayActive) {
+                                            daysMask and (1 shl index).inv()
+                                        } else {
+                                            daysMask or (1 shl index)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        color = if (isDayActive) Color.White else (if (isDark) Color(0xFFCBD5E1) else SoftNavyText)
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
+                                modifier = Modifier.clickable { daysMask = 127 }
+                            ) {
+                                Text(if (isArabic) "يومياً" else "Every day", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                            }
+                        }
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
+                                modifier = Modifier.clickable { daysMask = 31 }
+                            ) {
+                                Text(if (isArabic) "أيام العمل" else "Weekdays", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                            }
+                        }
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
+                                modifier = Modifier.clickable { daysMask = (1 shl 0) or (1 shl 3) }
+                            ) {
+                                Text(if (isArabic) "إثنين وخميس" else "Mon & Thu", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                            }
+                        }
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
+                                modifier = Modifier.clickable { daysMask = (1 shl 4) }
+                            ) {
+                                Text(if (isArabic) "الجمعة فقط" else "Fridays only", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                            }
+                        }
                     }
                 }
 
@@ -2940,30 +2349,45 @@ private fun HabitScheduleAlarmDialog(
                         }
                     }
 
-                    Row(
+                    LazyRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
-                            modifier = Modifier.clickable { daysMask = 127 }
-                        ) {
-                            Text(if (isArabic) "يومياً" else "Daily", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
+                                modifier = Modifier.clickable { daysMask = 127 }
+                            ) {
+                                Text(if (isArabic) "يومياً" else "Every day", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                            }
                         }
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
-                            modifier = Modifier.clickable { daysMask = (1 shl 0) or (1 shl 3) }
-                        ) {
-                            Text(if (isArabic) "إثنين وخميس" else "Mon & Thu", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
+                                modifier = Modifier.clickable { daysMask = 31 }
+                            ) {
+                                Text(if (isArabic) "أيام العمل" else "Weekdays", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                            }
                         }
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
-                            modifier = Modifier.clickable { daysMask = (1 shl 4) }
-                        ) {
-                            Text(if (isArabic) "الجمعة فقط" else "Friday only", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
+                                modifier = Modifier.clickable { daysMask = (1 shl 0) or (1 shl 3) }
+                            ) {
+                                Text(if (isArabic) "إثنين وخميس" else "Mon & Thu", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                            }
+                        }
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
+                                modifier = Modifier.clickable { daysMask = (1 shl 4) }
+                            ) {
+                                Text(if (isArabic) "الجمعة فقط" else "Fridays only", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp))
+                            }
                         }
                     }
                 }

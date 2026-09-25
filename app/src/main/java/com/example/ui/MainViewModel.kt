@@ -2011,6 +2011,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         com.example.widget.PrayerWidgetUpdater.updateAsync(getApplication())
     }
 
+    fun getPrayerTimesForDate(date: LocalDate): List<PrayerTime> {
+        if (!isLocationConfigured.value) {
+            return emptyList()
+        }
+        if (date == LocalDate.now() && _prayerTimes.value.isNotEmpty() && _prayerTimes.value.first().timeString != "--:--") {
+            return _prayerTimes.value
+        }
+        return repository.calculatePrayerTimes(
+            zone = selectedPrayerZone.value,
+            authority = selectedAuthority.value,
+            isHanafiAsr = isHanafiAsr.value,
+            date = date,
+            minuteOffsets = prayerManualMinuteOffsets.value
+        )
+    }
+
     private fun startRealtimeCountdown() {
         countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
@@ -4949,13 +4965,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             showToast("Habit added to planner! ✨")
             triggerHaptic()
-        }
-    }
-
-    fun addCustomHabit(title: String, target: Int, category: String) {
-        viewModelScope.launch {
-            repository.addCustomHabit(title, target, category)
-            showToast("Habit added!")
         }
     }
 
