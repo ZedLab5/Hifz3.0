@@ -52,7 +52,6 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Today
-import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.ViewDay
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Circle

@@ -2012,9 +2012,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun getPrayerTimesForDate(date: LocalDate): List<PrayerTime> {
-        if (!isLocationConfigured.value) {
-            return emptyList()
-        }
         if (date == LocalDate.now() && _prayerTimes.value.isNotEmpty() && _prayerTimes.value.first().timeString != "--:--") {
             return _prayerTimes.value
         }
