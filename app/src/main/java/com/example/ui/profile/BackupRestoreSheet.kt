@@ -255,7 +255,7 @@ fun BackupRestoreSheet(
                     }
 
                     Text(
-                        text = "Al-Noor stores your spiritual data locally on your device for complete privacy. Use this tool to easily export your Khatma plans, bookmarks, prayers, and streaks to Google Drive, Email, or transfer them to another phone.",
+                        text = "Al-Noor stores your spiritual data locally on your device for complete privacy. Use this tool to easily export your Khatma plans, bookmarks, prayers, and streaks to Cloud Drive, Email, or transfer them to another phone.",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = activeTextPrimary.copy(alpha = 0.85f),
                             fontSize = 12.sp,
@@ -278,7 +278,7 @@ fun BackupRestoreSheet(
                             ExplanationStep(
                                 number = "2",
                                 title = "Save or Send",
-                                description = "Save it to your personal Google Drive, send via email to yourself, or share to your new device.",
+                                description = "Save it to your personal Cloud Drive, send via email to yourself, or share to your new device.",
                                 themeColors = themeColors
                             )
                             ExplanationStep(
@@ -333,7 +333,7 @@ fun BackupRestoreSheet(
                                 )
                             )
                             Text(
-                                text = "Upload to Google Drive, Email, or Files",
+                                text = "Upload to Cloud Drive, Email, or Files",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = activeTextSecondary,
                                     fontSize = 11.5.sp

@@ -806,7 +806,7 @@ private fun AccountActionsSection(
                     SettingsRowItem(
                         icon = Icons.Default.CloudSync,
                         title = "Connect Account",
-                        subtitle = "Sign in with Google, Apple or Email",
+                        subtitle = "Sign in with Cloud Account or Email",
                         onClick = onConnectClick,
                         themeColors = themeColors
                     )

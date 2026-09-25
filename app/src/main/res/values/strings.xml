@@ -645,7 +645,7 @@
     <string name="settings_section_privacy">Privacy Policy &amp; Security</string>
     <string name="settings_section_about">About Us &amp; Mission</string>
     <string name="settings_share_app">Share Noor App</string>
-    <string name="settings_rate_app">Rate on Google Play</string>
+    <string name="settings_rate_app">Rate Application</string>
     <string name="settings_theme_fixed_sub">Fixed clean light theme</string>
     <string name="settings_theme_clean_light">Clean Light Canvas</string>
     <string name="settings_theme_desc">Tailored for high readability, tranquil mint palette, and crisp typography for Quran recitation.</string>

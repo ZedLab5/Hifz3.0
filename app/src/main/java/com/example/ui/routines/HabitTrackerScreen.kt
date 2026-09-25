@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -74,6 +76,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -122,8 +128,8 @@ private val GoldBadgeBg = Color(0xFFFBF0DC)
 private val SurfaceCanvasLight = Color(0xFFF6F8F7)
 private val NeutralBorderLight = Color(0xFFECEFF1)
 
-// Google Calendar Style View Modes
-private enum class GCalViewMode {
+// Calendar Style View Modes
+private enum class CalendarViewMode {
     DAY_TIMELINE,
     SCHEDULE_AGENDA,
     MONTH_GRID
@@ -152,7 +158,7 @@ fun HabitTrackerScreen(
     val isViewingToday = selectedDate == today
 
     // Calendar View State
-    var gcalViewMode by remember { mutableStateOf(GCalViewMode.DAY_TIMELINE) }
+    var calendarViewMode by remember { mutableStateOf(CalendarViewMode.DAY_TIMELINE) }
     var calendarSelectedDate by remember { mutableStateOf(LocalDate.now()) }
     var currentYearMonth by remember { mutableStateOf(YearMonth.now()) }
 
@@ -206,51 +212,65 @@ fun HabitTrackerScreen(
                 title = if (selectedTab == 0) {
                     if (isLangArabic) "الجدول اليومي والعادات" else "Daily Planner & Routines"
                 } else {
-                    if (isLangArabic) "تقويم العادات المجدولة" else "Google Style Calendar"
+                    if (isLangArabic) "تقويم العادات المجدولة" else "Istiqamah Calendar"
                 },
                 eyebrow = "ISTIQAMAH PLANNER",
                 subtitle = if (selectedTab == 0) {
                     "$completedCount/$totalCount Completed • Steadfast Consistency"
                 } else {
-                    "Google Calendar Timeline & Schedule"
+                    "Istiqamah Timeline & Schedule"
                 },
                 onBackClick = { viewModel.navigateBack() },
                 backContentDescription = "Back",
                 isDark = isDark,
                 themeColors = themeColors,
                 actions = {
-                    NoorGlassIconButton(
-                        onClick = {
-                            preselectedAddDateIso = if (selectedTab == 1) {
-                                calendarSelectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                            } else null
-                            preselectedAddHour = null
-                            showAddDialog = true
-                        },
-                        icon = Icons.Default.Add,
-                        contentDescription = "Add Routine"
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        NoorGlassIconButton(
+                            onClick = {
+                                selectedTab = if (selectedTab == 2) 0 else 2
+                            },
+                            icon = Icons.Default.CalendarMonth,
+                            contentDescription = "Month Calendar View"
+                        )
+                        NoorGlassIconButton(
+                            onClick = {
+                                preselectedAddDateIso = if (selectedTab == 1) {
+                                    calendarSelectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                                } else null
+                                preselectedAddHour = null
+                                showAddDialog = true
+                            },
+                            icon = Icons.Default.Add,
+                            contentDescription = "Add Routine"
+                        )
+                    }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    preselectedAddDateIso = if (selectedTab == 1) {
-                        calendarSelectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                    } else null
-                    preselectedAddHour = null
-                    showAddDialog = true
-                },
-                containerColor = PrimaryTeal,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier.testTag("add_habit_fab")
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Routine")
+            if (selectedTab != 2) {
+                FloatingActionButton(
+                    onClick = {
+                        preselectedAddDateIso = if (selectedTab == 1) {
+                            calendarSelectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                        } else null
+                        preselectedAddHour = null
+                        showAddDialog = true
+                    },
+                    containerColor = PrimaryTeal,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier.testTag("add_habit_fab")
+                ) {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add Routine")
+                }
             }
         },
-        containerColor = if (isDark) themeColors.background else SurfaceCanvasLight,
+        containerColor = if (isDark) themeColors.background else Color.White,
         modifier = modifier
     ) { paddingValues ->
         Column(
@@ -258,138 +278,22 @@ fun HabitTrackerScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Unified Minimal View Selector: Planner (0) | Timeline (1) | Month (2)
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .height(42.dp),
-                shape = CircleShape,
-                color = if (isDark) Color(0xFF1E293B) else SoftNavyPillBg
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    // Pill 0: Planner
-                    val is0Selected = selectedTab == 0
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(CircleShape)
-                            .background(if (is0Selected) PrimaryTeal else Color.Transparent)
-                            .clickable { selectedTab = 0 },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Checklist,
-                                contentDescription = null,
-                                tint = if (is0Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = if (isLangArabic) "الجدول" else "Planner",
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = if (is0Selected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (is0Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                    fontSize = 12.5.sp
-                                )
-                            )
-                        }
-                    }
-
-                    // Pill 1: Day Timeline
-                    val is1Selected = selectedTab == 1
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(CircleShape)
-                            .background(if (is1Selected) PrimaryTeal else Color.Transparent)
-                            .clickable { selectedTab = 1 },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ViewDay,
-                                contentDescription = null,
-                                tint = if (is1Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = if (isLangArabic) "الوقت اليومي" else "Timeline",
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = if (is1Selected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (is1Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                    fontSize = 12.5.sp
-                                )
-                            )
-                        }
-                    }
-
-                    // Pill 2: Month View
-                    val is2Selected = selectedTab == 2
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(CircleShape)
-                            .background(if (is2Selected) PrimaryTeal else Color.Transparent)
-                            .clickable { selectedTab = 2 },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarMonth,
-                                contentDescription = null,
-                                tint = if (is2Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = if (isLangArabic) "الشهر" else "Month",
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = if (is2Selected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (is2Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
-                                    fontSize = 12.5.sp
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
             if (selectedTab == 0) {
                 // Tab 0: Daily Planner & Tasks View
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 86.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 86.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // 1. Horizontal Date Strip (Lightweight Calendar Horizon)
-                    item(key = "calendar_horizon_strip") {
-                        CalendarHorizonStrip(
-                            selectedDate = selectedDate,
-                            today = today,
-                            habits = habits,
+                    // Non-sticky Selector Tab Header at the top of the list!
+                    item(key = "tab_selector_header") {
+                        ViewSelectorTabs(
+                            selectedTab = selectedTab,
+                            onTabSelect = { selectedTab = it },
                             isDark = isDark,
-                            isArabic = isLangArabic,
-                            onSelectDate = { selectedDate = it }
+                            isArabic = isLangArabic
                         )
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
 
                     // 3. Pinned Routines Section for Selected Date (Shown ONCE only)
@@ -530,37 +434,28 @@ fun HabitTrackerScreen(
                 }
             } else if (selectedTab == 1) {
                 // Mode 1: Clean Day Timeline with Prayer Context Markers
-                Column(modifier = Modifier.fillMaxSize()) {
-                    CalendarHorizonStrip(
-                        selectedDate = selectedDate,
-                        today = today,
-                        habits = habits,
-                        isDark = isDark,
-                        isArabic = isLangArabic,
-                        onSelectDate = { selectedDate = it }
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    GoogleCalendarDayTimeline(
-                        selectedDate = selectedDate,
-                        today = today,
-                        habits = habits,
-                        isDark = isDark,
-                        isArabic = isLangArabic,
-                        onIncrementHabit = { viewModel.incrementHabit(it) },
-                        onMarkDoneHabit = { viewModel.markHabitDone(it) },
-                        onTogglePinHabit = { viewModel.toggleHabitPin(it) },
-                        onEditHabitSchedule = { editingHabitForSchedule = it },
-                        onDeleteHabit = { viewModel.deleteHabit(it) },
-                        onAddNewRoutineForSlot = { date, hour ->
-                            preselectedAddDateIso = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                            preselectedAddHour = hour
-                            showAddDialog = true
-                        }
-                    )
-                }
+                CalendarDayTimeline(
+                    selectedTab = selectedTab,
+                    onTabSelect = { selectedTab = it },
+                    selectedDate = selectedDate,
+                    today = today,
+                    habits = habits,
+                    isDark = isDark,
+                    isArabic = isLangArabic,
+                    onIncrementHabit = { viewModel.incrementHabit(it) },
+                    onMarkDoneHabit = { viewModel.markHabitDone(it) },
+                    onTogglePinHabit = { viewModel.toggleHabitPin(it) },
+                    onEditHabitSchedule = { editingHabitForSchedule = it },
+                    onDeleteHabit = { viewModel.deleteHabit(it) },
+                    onAddNewRoutineForSlot = { date, hour ->
+                        preselectedAddDateIso = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                        preselectedAddHour = hour
+                        showAddDialog = true
+                    }
+                )
             } else {
                 // Mode 2: Month Grid View
-                GoogleCalendarMonthGrid(
+                CalendarMonthGrid(
                     currentYearMonth = currentYearMonth,
                     selectedDate = selectedDate,
                     today = today,
@@ -569,8 +464,12 @@ fun HabitTrackerScreen(
                     isArabic = isLangArabic,
                     onSelectDate = {
                         selectedDate = it
-                        selectedTab = 1 // Switch to Timeline view on date select
-                    }
+                    },
+                    onIncrementHabit = { viewModel.incrementHabit(it) },
+                    onMarkDoneHabit = { viewModel.markHabitDone(it) },
+                    onTogglePinHabit = { viewModel.toggleHabitPin(it) },
+                    onEditHabitSchedule = { editingHabitForSchedule = it },
+                    onDeleteHabit = { viewModel.deleteHabit(it) }
                 )
             }
         }
@@ -631,18 +530,18 @@ fun HabitTrackerScreen(
 }
 
 // -----------------------------------------------------------------------------------------
-// Google Calendar Complete View Experience
+// Calendar Complete View Experience
 // -----------------------------------------------------------------------------------------
 
 @Composable
-private fun GoogleCalendarExperience(
-    viewMode: GCalViewMode,
+private fun CalendarExperience(
+    viewMode: CalendarViewMode,
     currentYearMonth: YearMonth,
     selectedDate: LocalDate,
     habits: List<DailyHabitEntity>,
     isDark: Boolean,
     isArabic: Boolean,
-    onViewModeChange: (GCalViewMode) -> Unit,
+    onViewModeChange: (CalendarViewMode) -> Unit,
     onSelectDate: (LocalDate) -> Unit,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
@@ -660,7 +559,7 @@ private fun GoogleCalendarExperience(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 1. Google Calendar Style App Header Bar
+        // 1. Calendar Style App Header Bar
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -708,15 +607,15 @@ private fun GoogleCalendarExperience(
                         }
                     }
 
-                    // Google Calendar Iconic "Today" Avatar Button
+                    // Iconic "Today" Avatar Button
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = CircleShape,
                         color = if (isDark) Color(0xFF334155) else TealTintBg,
                         border = BorderStroke(1.dp, PrimaryTeal.copy(alpha = 0.5f)),
                         modifier = Modifier.clickable { onJumpToToday() }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -740,7 +639,7 @@ private fun GoogleCalendarExperience(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // 2. Google Calendar View Mode Switcher (Day Timeline | Schedule Agenda | Month Grid)
+                // 2. Calendar View Mode Switcher (Day Timeline | Schedule Agenda | Month Grid)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -749,29 +648,29 @@ private fun GoogleCalendarExperience(
                         .padding(2.dp),
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    GCalModeChip(
+                    CalendarModeChip(
                         label = if (isArabic) "اليوم والجدول" else "Day Timeline",
                         icon = Icons.Default.ViewDay,
-                        isSelected = viewMode == GCalViewMode.DAY_TIMELINE,
-                        onClick = { onViewModeChange(GCalViewMode.DAY_TIMELINE) },
+                        isSelected = viewMode == CalendarViewMode.DAY_TIMELINE,
+                        onClick = { onViewModeChange(CalendarViewMode.DAY_TIMELINE) },
                         modifier = Modifier.weight(1f),
                         isDark = isDark
                     )
 
-                    GCalModeChip(
+                    CalendarModeChip(
                         label = if (isArabic) "الأجندة" else "Schedule",
                         icon = Icons.Default.ViewAgenda,
-                        isSelected = viewMode == GCalViewMode.SCHEDULE_AGENDA,
-                        onClick = { onViewModeChange(GCalViewMode.SCHEDULE_AGENDA) },
+                        isSelected = viewMode == CalendarViewMode.SCHEDULE_AGENDA,
+                        onClick = { onViewModeChange(CalendarViewMode.SCHEDULE_AGENDA) },
                         modifier = Modifier.weight(1f),
                         isDark = isDark
                     )
 
-                    GCalModeChip(
+                    CalendarModeChip(
                         label = if (isArabic) "الشهر" else "Month",
                         icon = Icons.Default.CalendarMonth,
-                        isSelected = viewMode == GCalViewMode.MONTH_GRID,
-                        onClick = { onViewModeChange(GCalViewMode.MONTH_GRID) },
+                        isSelected = viewMode == CalendarViewMode.MONTH_GRID,
+                        onClick = { onViewModeChange(CalendarViewMode.MONTH_GRID) },
                         modifier = Modifier.weight(1f),
                         isDark = isDark
                     )
@@ -779,8 +678,8 @@ private fun GoogleCalendarExperience(
             }
         }
 
-        // 3. Google Calendar 7-Day Week Carousel Header
-        GoogleCalendarWeekHeader(
+        // 3. Calendar 7-Day Week Carousel Header
+        CalendarWeekHeader(
             selectedDate = selectedDate,
             today = today,
             habits = habits,
@@ -791,10 +690,10 @@ private fun GoogleCalendarExperience(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // 4. Main Google Calendar Content by View Mode
+        // 4. Main Calendar Content by View Mode
         when (viewMode) {
-            GCalViewMode.DAY_TIMELINE -> {
-                GoogleCalendarDayTimeline(
+            CalendarViewMode.DAY_TIMELINE -> {
+                CalendarDayTimeline(
                     selectedDate = selectedDate,
                     today = today,
                     habits = habits,
@@ -808,8 +707,8 @@ private fun GoogleCalendarExperience(
                     onAddNewRoutineForSlot = onAddNewRoutineForSlot
                 )
             }
-            GCalViewMode.SCHEDULE_AGENDA -> {
-                GoogleCalendarScheduleAgenda(
+            CalendarViewMode.SCHEDULE_AGENDA -> {
+                CalendarScheduleAgenda(
                     selectedDate = selectedDate,
                     today = today,
                     habits = habits,
@@ -824,8 +723,8 @@ private fun GoogleCalendarExperience(
                     onAddNewRoutineForSlot = onAddNewRoutineForSlot
                 )
             }
-            GCalViewMode.MONTH_GRID -> {
-                GoogleCalendarMonthGrid(
+            CalendarViewMode.MONTH_GRID -> {
+                CalendarMonthGrid(
                     currentYearMonth = currentYearMonth,
                     selectedDate = selectedDate,
                     today = today,
@@ -834,8 +733,13 @@ private fun GoogleCalendarExperience(
                     isArabic = isArabic,
                     onSelectDate = {
                         onSelectDate(it)
-                        onViewModeChange(GCalViewMode.DAY_TIMELINE)
-                    }
+                        onViewModeChange(CalendarViewMode.DAY_TIMELINE)
+                    },
+                    onIncrementHabit = onIncrementHabit,
+                    onMarkDoneHabit = onMarkDoneHabit,
+                    onTogglePinHabit = onTogglePinHabit,
+                    onEditHabitSchedule = onEditHabitSchedule,
+                    onDeleteHabit = onDeleteHabit
                 )
             }
         }
@@ -843,7 +747,7 @@ private fun GoogleCalendarExperience(
 }
 
 @Composable
-private fun GCalModeChip(
+private fun CalendarModeChip(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
@@ -882,11 +786,11 @@ private fun GCalModeChip(
 }
 
 // -----------------------------------------------------------------------------------------
-// Google Calendar 7-Day Carousel Header Strip
+// Calendar 7-Day Carousel Header Strip
 // -----------------------------------------------------------------------------------------
 
 @Composable
-private fun GoogleCalendarWeekHeader(
+private fun CalendarWeekHeader(
     selectedDate: LocalDate,
     today: LocalDate,
     habits: List<DailyHabitEntity>,
@@ -900,20 +804,12 @@ private fun GoogleCalendarWeekHeader(
         (0..6).map { startOfWeek.plusDays(it.toLong()) }
     }
 
-    Surface(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(18.dp),
-        color = if (isDark) Color(0xFF1E293B) else Color.White,
-        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else NeutralBorderLight)
+            .padding(vertical = 6.dp, horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 6.dp),
-            horizontalArrangement = Arrangement.SpaceAround
-        ) {
             weekDays.forEach { date ->
                 val isSelected = date == selectedDate
                 val isCellToday = date == today
@@ -956,7 +852,7 @@ private fun GoogleCalendarWeekHeader(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(CircleShape)
                         .background(
                             when {
                                 isSelected -> PrimaryTeal
@@ -967,10 +863,10 @@ private fun GoogleCalendarWeekHeader(
                         .border(
                             width = if (isCellToday && !isSelected) 1.5.dp else 0.dp,
                             color = if (isCellToday && !isSelected) PrimaryTeal else Color.Transparent,
-                            shape = RoundedCornerShape(14.dp)
+                            shape = CircleShape
                         )
                         .clickable { onSelectDate(date) }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -998,14 +894,15 @@ private fun GoogleCalendarWeekHeader(
             }
         }
     }
-}
 
 // -----------------------------------------------------------------------------------------
-// 1. Google Calendar Day Timeline View (Hour-by-hour 24h Grid)
+// 1. Day Timeline View (Hour-by-hour 24h Grid)
 // -----------------------------------------------------------------------------------------
 
 @Composable
-private fun GoogleCalendarDayTimeline(
+private fun CalendarDayTimeline(
+    selectedTab: Int? = null,
+    onTabSelect: ((Int) -> Unit)? = null,
     selectedDate: LocalDate,
     today: LocalDate,
     habits: List<DailyHabitEntity>,
@@ -1052,9 +949,22 @@ private fun GoogleCalendarDayTimeline(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 86.dp),
+        contentPadding = PaddingValues(start = 8.dp, end = 12.dp, bottom = 86.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // Non-sticky Selector Tab Header at the top of the list (rendered only if provided!)
+        if (selectedTab != null && onTabSelect != null) {
+            item(key = "tab_selector_header") {
+                ViewSelectorTabs(
+                    selectedTab = selectedTab,
+                    onTabSelect = onTabSelect,
+                    isDark = isDark,
+                    isArabic = isArabic
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+
         // 24-Hour Timeline Grid (04:00 AM to 11:00 PM) - Tasks appear directly INSIDE the calendar slots
         val startHour = 4
         val endHour = 23
@@ -1074,14 +984,13 @@ private fun GoogleCalendarDayTimeline(
                     .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                // Time Label Column
+                // Time Label Column - width reduced to 46.dp to push content nicely to the left side
                 val amPm = if (hour >= 12) "PM" else "AM"
                 val displayHour = if (hour % 12 == 0) 12 else hour % 12
-                val timeLabel = String.format(Locale.ENGLISH, "%02d:00 %s", displayHour, amPm)
 
                 Column(
                     modifier = Modifier
-                        .width(62.dp)
+                        .width(46.dp)
                         .padding(top = 4.dp),
                     horizontalAlignment = Alignment.End
                 ) {
@@ -1089,24 +998,24 @@ private fun GoogleCalendarDayTimeline(
                         text = String.format(Locale.ENGLISH, "%02d:00", displayHour),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = if (isCurrentHourSlot) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 11.5.sp,
+                            fontSize = 11.sp,
                             color = if (isCurrentHourSlot) PrimaryTeal else (if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A))
                         )
                     )
                     Text(
                         text = amPm,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 9.5.sp,
+                            fontSize = 8.5.sp,
                             color = if (isDark) Color(0xFF64748B) else Color(0xFF9E9E9E)
                         )
                     )
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
-                // Timeline Line & Content Column
+                // Timeline Content Column
                 Column(modifier = Modifier.weight(1f)) {
-                    // Subtle Google Calendar Grid Line
+                    // Subtle Calendar Grid Line
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1157,7 +1066,7 @@ private fun GoogleCalendarDayTimeline(
                         }
                     }
 
-                    // Current Time Red Indicator Line (Google Calendar signature)
+                    // Current Time Red Indicator Line
                     if (isCurrentHourSlot) {
                         val fraction = (nowTime.minute.toFloat() / 60f).coerceIn(0f, 1f)
                         Row(
@@ -1186,7 +1095,7 @@ private fun GoogleCalendarDayTimeline(
                     if (hourRoutines.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             hourRoutines.forEach { habit ->
-                                GoogleCalendarEventCard(
+                                CalendarEventCard(
                                     habit = habit,
                                     isDark = isDark,
                                     isArabic = isArabic,
@@ -1224,12 +1133,111 @@ private fun GoogleCalendarDayTimeline(
     }
 }
 
+// Data model for grouped parts of the day
+private data class DaySection(
+    val titleEn: String,
+    val titleAr: String,
+    val hours: List<Int>,
+    val bgLight: Color,
+    val bgDark: Color,
+    val accentColor: Color
+)
+
+// ViewSelectorTabs Composable for non-sticky tabs
+@Composable
+private fun ViewSelectorTabs(
+    selectedTab: Int,
+    onTabSelect: (Int) -> Unit,
+    isDark: Boolean,
+    isArabic: Boolean
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .height(44.dp),
+        shape = CircleShape,
+        color = if (isDark) Color(0xFF1E293B) else SoftNavyPillBg
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // Pill 0: Planner
+            val is0Selected = selectedTab == 0
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(if (is0Selected) PrimaryTeal else Color.Transparent)
+                    .clickable { onTabSelect(0) },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Checklist,
+                        contentDescription = null,
+                        tint = if (is0Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = if (isArabic) "الجدول" else "Planner",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = if (is0Selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (is0Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                            fontSize = 13.sp
+                        )
+                    )
+                }
+            }
+
+            // Pill 1: Day Timeline
+            val is1Selected = selectedTab == 1
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(if (is1Selected) PrimaryTeal else Color.Transparent)
+                    .clickable { onTabSelect(1) },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ViewDay,
+                        contentDescription = null,
+                        tint = if (is1Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = if (isArabic) "الوقت اليومي" else "Timeline",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = if (is1Selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (is1Selected) Color.White else (if (isDark) Color(0xFF94A3B8) else SoftNavyText),
+                            fontSize = 13.sp
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
 // -----------------------------------------------------------------------------------------
-// 2. Google Calendar Schedule (Agenda) Stream View
+// 2. Schedule (Agenda) Stream View
 // -----------------------------------------------------------------------------------------
 
 @Composable
-private fun GoogleCalendarScheduleAgenda(
+private fun CalendarScheduleAgenda(
     selectedDate: LocalDate,
     today: LocalDate,
     habits: List<DailyHabitEntity>,
@@ -1357,7 +1365,7 @@ private fun GoogleCalendarScheduleAgenda(
                 }
             } else {
                 items(streamHabits, key = { "agenda_habit_${dateIso}_${it.id}" }) { habit ->
-                    GoogleCalendarEventCard(
+                    CalendarEventCard(
                         habit = habit,
                         isDark = isDark,
                         isArabic = isArabic,
@@ -1374,78 +1382,144 @@ private fun GoogleCalendarScheduleAgenda(
 }
 
 // -----------------------------------------------------------------------------------------
-// 3. Google Calendar Month Grid View (Matrix Layout)
+// 3. Month Grid View (Matrix Layout)
 // -----------------------------------------------------------------------------------------
 
 @Composable
-private fun GoogleCalendarMonthGrid(
+private fun CalendarMonthGrid(
     currentYearMonth: YearMonth,
     selectedDate: LocalDate,
     today: LocalDate,
     habits: List<DailyHabitEntity>,
     isDark: Boolean,
     isArabic: Boolean,
-    onSelectDate: (LocalDate) -> Unit
+    onSelectDate: (LocalDate) -> Unit,
+    onIncrementHabit: (DailyHabitEntity) -> Unit,
+    onMarkDoneHabit: (DailyHabitEntity) -> Unit,
+    onTogglePinHabit: (DailyHabitEntity) -> Unit,
+    onEditHabitSchedule: (DailyHabitEntity) -> Unit,
+    onDeleteHabit: (DailyHabitEntity) -> Unit
 ) {
     val firstDayOfMonth = currentYearMonth.atDay(1)
     val daysInMonth = currentYearMonth.lengthOfMonth()
-    val leadingEmptyDays = (firstDayOfMonth.dayOfWeek.value - 1) // 0 for Mon..6 for Sun
-
+    
+    // Sunday-first: Sunday=0, Monday=1, ..., Saturday=6
+    val leadingEmptyDays = firstDayOfMonth.dayOfWeek.value % 7
     val totalGridCells = leadingEmptyDays + daysInMonth
     val rows = (totalGridCells + 6) / 7
 
     val daysHeaderLabels = if (isArabic) {
-        listOf("إثن", "ثلا", "أرب", "خمي", "جمع", "سبت", "أحد")
+        listOf("أحد", "إثن", "ثلا", "أرب", "خمي", "جمع", "سبت")
     } else {
-        listOf("M", "T", "W", "T", "F", "S", "S")
+        listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    }
+
+    // Filter routines/habits specifically for the selected date to show in Month tab agenda
+    val selectedDayOfWeek = selectedDate.dayOfWeek
+    val selectedBitIndex = when (selectedDayOfWeek) {
+        DayOfWeek.MONDAY -> 0
+        DayOfWeek.TUESDAY -> 1
+        DayOfWeek.WEDNESDAY -> 2
+        DayOfWeek.THURSDAY -> 3
+        DayOfWeek.FRIDAY -> 4
+        DayOfWeek.SATURDAY -> 5
+        DayOfWeek.SUNDAY -> 6
+    }
+    val selectedDateStr = remember(selectedDate) { selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) }
+    val selectedDayRoutines = remember(habits, selectedDateStr, selectedBitIndex) {
+        habits.filter { habit ->
+            if (!habit.targetDateIso.isNullOrBlank()) {
+                habit.targetDateIso == selectedDateStr
+            } else {
+                (habit.pinnedDaysMask and (1 shl selectedBitIndex)) != 0
+            }
+        }.sortedBy { it.scheduledTimeMinutes ?: 9999 }
+    }
+
+    val dateFormatter = remember(isArabic) {
+        DateTimeFormatter.ofPattern("d MMMM, yyyy", if (isArabic) Locale("ar") else Locale.ENGLISH)
+    }
+
+    var showDayRoutinesDialog by remember { mutableStateOf(false) }
+
+    val gridBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFECEFF1)
+
+    val monthYearStr = remember(currentYearMonth, isArabic) {
+        currentYearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", if (isArabic) Locale("ar") else Locale.ENGLISH))
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 86.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 0.dp, bottom = 86.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         item(key = "month_matrix_card") {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                color = if (isDark) Color(0xFF1E293B) else Color.White,
-                border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else NeutralBorderLight)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    // Day of Week Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        daysHeaderLabels.forEach { label ->
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A)
-                                ),
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Short explanation text at the top with the active month
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = monthYearStr,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+                        color = SoftNavyText
+                    )
+                    Text(
+                        text = if (isArabic) {
+                            "انقر فوق أي يوم لعرض أورادك وإدارتها ومتابعة إنجازاتك."
+                        } else {
+                            "Click on any day to view routines, complete activities, and track accomplishments."
+                        },
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A),
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        )
+                    )
+                }
+
+                // Day of Week Header with Gray Background Bar (matching image)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(if (isDark) Color(0xFF1E293B) else Color(0xFFECEFF1))
+                        .padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    daysHeaderLabels.forEach { label ->
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF5F5E5A)
+                            ),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                // Month Matrix connected into a single unified grid with lines (edge-to-edge)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(if (isDark) Color(0xFF0F172A) else Color.White)
+                ) {
+                    for (rowIndex in 0 until rows) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            for (colIndex in 0 until 7) {
+                                val cellIndex = rowIndex * 7 + colIndex
+                                val dayNumber = cellIndex - leadingEmptyDays + 1
+                                val isSunday = colIndex == 0
 
-                    // Month Matrix
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        for (rowIndex in 0 until rows) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceAround
-                            ) {
-                                for (colIndex in 0 until 7) {
-                                    val cellIndex = rowIndex * 7 + colIndex
-                                    val dayNumber = cellIndex - leadingEmptyDays + 1
-
-                                    if (dayNumber in 1..daysInMonth) {
+                                when {
+                                    dayNumber in 1..daysInMonth -> {
                                         val cellDate = currentYearMonth.atDay(dayNumber)
                                         val isSelected = cellDate == selectedDate
                                         val isCellToday = cellDate == today
@@ -1468,77 +1542,139 @@ private fun GoogleCalendarMonthGrid(
                                                 (habit.pinnedDaysMask and (1 shl cellBitIndex)) != 0
                                             }
                                         }
-                                        val hasPinned = cellRoutines.any { it.pinnedToPlanner }
+                                        val totalCount = cellRoutines.size
+                                        val completedCount = cellRoutines.count { it.isCompleted }
+                                        val incompleteCount = totalCount - completedCount
 
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .aspectRatio(0.9f)
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .height(100.dp)
                                                 .background(
                                                     when {
-                                                        isSelected -> PrimaryTeal
-                                                        isCellToday -> if (isDark) Color(0xFF334155) else TealTintBg
+                                                        // Active/Selected day has NO fill background color (completely transparent)
+                                                        isSelected -> Color.Transparent
+                                                        isCellToday -> if (isDark) Color(0xFF1E293B) else TealTintBg
                                                         else -> Color.Transparent
                                                     }
                                                 )
                                                 .border(
-                                                    width = if (isCellToday && !isSelected) 1.5.dp else 0.dp,
-                                                    color = if (isCellToday && !isSelected) PrimaryTeal else Color.Transparent,
-                                                    shape = RoundedCornerShape(12.dp)
+                                                    width = if (isSelected) 1.5.dp else 0.5.dp,
+                                                    color = if (isSelected) PrimaryTeal else gridBorderColor
                                                 )
-                                                .clickable { onSelectDate(cellDate) }
-                                                .padding(2.dp),
-                                            contentAlignment = Alignment.TopCenter
+                                                .clickable {
+                                                    onSelectDate(cellDate)
+                                                    showDayRoutinesDialog = true
+                                                }
+                                                .padding(6.dp),
+                                            contentAlignment = Alignment.TopStart
                                         ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                                            ) {
+                                            Box(modifier = Modifier.fillMaxSize()) {
+                                                // Day Number - Top Left (using SoftNavyText for active/today and softened soft charcoal black for other days)
                                                 Text(
                                                     text = dayNumber.toString(),
-                                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                                        fontWeight = if (isSelected || isCellToday) FontWeight.Bold else FontWeight.Medium,
-                                                        fontSize = 12.5.sp,
-                                                        color = if (isSelected) Color.White else (if (isDark) Color(0xFFF1F5F9) else Color(0xFF1F1F1F))
-                                                    )
+                                                    style = MaterialTheme.typography.titleSmall.copy(
+                                                        fontWeight = if (isSelected || isCellToday) FontWeight.Bold else FontWeight.SemiBold,
+                                                        fontSize = 13.sp,
+                                                        color = if (isSelected || isCellToday) SoftNavyText else (if (isDark) Color(0xFFCBD5E1) else Color(0xFF374151))
+                                                    ),
+                                                    modifier = Modifier.align(Alignment.TopStart)
                                                 )
 
-                                                // Google Calendar Mini Pill Previews
-                                                if (cellRoutines.isNotEmpty()) {
-                                                    val previewText = cellRoutines.first().title
-                                                    Surface(
-                                                        shape = RoundedCornerShape(4.dp),
-                                                        color = if (isSelected) Color.White.copy(alpha = 0.3f) else (if (hasPinned) GoldBadgeBg else TealTintBg),
-                                                        modifier = Modifier.fillMaxWidth()
-                                                    ) {
-                                                        Text(
-                                                            text = previewText,
-                                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                                fontSize = 8.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = if (isSelected) Color.White else (if (hasPinned) GoldBadgeText else PrimaryTeal)
-                                                            ),
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 1.dp)
+                                                // High-legibility Status / Urgency Badge - Bottom Right (using links color SoftNavyText for task numbers)
+                                                if (totalCount > 0) {
+                                                    val (badgeBg, badgeText, label) = when {
+                                                        incompleteCount == 0 -> Triple(
+                                                            PrimaryTeal,
+                                                            Color.White,
+                                                            "✓"
+                                                        )
+                                                        else -> Triple(
+                                                            if (isDark) Color(0xFF2D3748) else Color(0xFFEDF2F7),
+                                                            SoftNavyText,
+                                                            "$incompleteCount"
                                                         )
                                                     }
 
-                                                    if (cellRoutines.size > 1) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(18.dp)
+                                                            .clip(CircleShape)
+                                                            .background(badgeBg)
+                                                            .align(Alignment.BottomEnd),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
                                                         Text(
-                                                            text = "+${cellRoutines.size - 1}",
+                                                            text = label,
                                                             style = MaterialTheme.typography.labelSmall.copy(
-                                                                fontSize = 7.5.sp,
-                                                                color = if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0xFF9E9E9E)
+                                                                fontSize = 9.5.sp,
+                                                                fontWeight = FontWeight.ExtraBold,
+                                                                color = badgeText
                                                             )
                                                         )
                                                     }
                                                 }
                                             }
                                         }
-                                    } else {
-                                        Box(modifier = Modifier.weight(1f).aspectRatio(0.9f))
+                                    }
+                                    dayNumber <= 0 -> {
+                                        // Previous Month Day (dimmed)
+                                        val prevMonth = currentYearMonth.minusMonths(1)
+                                        val prevMonthLen = prevMonth.lengthOfMonth()
+                                        val prevDayNumber = prevMonthLen + dayNumber
+                                        val prevDate = prevMonth.atDay(prevDayNumber)
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(100.dp)
+                                                .border(0.5.dp, gridBorderColor)
+                                                .background(if (isDark) Color(0xFF0F172A).copy(alpha = 0.5f) else Color(0xFFF9FBFB))
+                                                .clickable {
+                                                    onSelectDate(prevDate)
+                                                    showDayRoutinesDialog = true
+                                                }
+                                                .padding(6.dp),
+                                            contentAlignment = Alignment.TopStart
+                                        ) {
+                                            Text(
+                                                text = prevDayNumber.toString(),
+                                                style = MaterialTheme.typography.titleSmall.copy(
+                                                    fontWeight = FontWeight.Normal,
+                                                    fontSize = 12.5.sp,
+                                                    color = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8)
+                                                )
+                                            )
+                                        }
+                                    }
+                                    else -> {
+                                        // Next Month Day (dimmed)
+                                        val nextMonth = currentYearMonth.plusMonths(1)
+                                        val nextDayNumber = dayNumber - daysInMonth
+                                        val nextDate = nextMonth.atDay(nextDayNumber)
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(100.dp)
+                                                .border(0.5.dp, gridBorderColor)
+                                                .background(if (isDark) Color(0xFF0F172A).copy(alpha = 0.5f) else Color(0xFFF9FBFB))
+                                                .clickable {
+                                                    onSelectDate(nextDate)
+                                                    showDayRoutinesDialog = true
+                                                }
+                                                .padding(6.dp),
+                                            contentAlignment = Alignment.TopStart
+                                        ) {
+                                            Text(
+                                                text = nextDayNumber.toString(),
+                                                style = MaterialTheme.typography.titleSmall.copy(
+                                                    fontWeight = FontWeight.Normal,
+                                                    fontSize = 12.5.sp,
+                                                    color = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8)
+                                                )
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1548,14 +1684,88 @@ private fun GoogleCalendarMonthGrid(
             }
         }
     }
+
+    if (showDayRoutinesDialog) {
+        AlertDialog(
+            onDismissRequest = { showDayRoutinesDialog = false },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isArabic) {
+                            "جدول ${selectedDate.format(dateFormatter)}"
+                        } else {
+                            "Routines on ${selectedDate.format(dateFormatter)}"
+                        },
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = if (isDark) Color.White else Color(0xFF1F1F1F)
+                    )
+                    IconButton(onClick = { showDayRoutinesDialog = false }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = if (isDark) Color.White else Color.Black)
+                    }
+                }
+            },
+            containerColor = if (isDark) Color(0xFF1E293B) else Color.White,
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                ) {
+                    if (selectedDayRoutines.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (isArabic) {
+                                    "لا توجد أوراد أو عادات مجدولة لهذا اليوم 🌟"
+                                } else {
+                                    "No routines scheduled for this day 🌟"
+                                },
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A),
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                )
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(selectedDayRoutines, key = { "popup_agenda_${it.id}" }) { habit ->
+                                CalendarEventCard(
+                                    habit = habit,
+                                    isDark = isDark,
+                                    isArabic = isArabic,
+                                    onIncrement = { onIncrementHabit(habit) },
+                                    onMarkDone = { onMarkDoneHabit(habit) },
+                                    onTogglePin = { onTogglePinHabit(habit) },
+                                    onEditSchedule = { onEditHabitSchedule(habit) },
+                                    onDelete = { onDeleteHabit(habit) }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
 }
 
 // -----------------------------------------------------------------------------------------
-// Google Calendar Style Event Cards & Chips
+// Calendar Style Event Cards & Chips
 // -----------------------------------------------------------------------------------------
 
 @Composable
-private fun GoogleCalendarEventCard(
+private fun CalendarEventCard(
     habit: DailyHabitEntity,
     isDark: Boolean,
     isArabic: Boolean,
@@ -1585,40 +1795,26 @@ private fun GoogleCalendarEventCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable { if (habit.isCompleted) onIncrement() else onMarkDone() },
-        shape = RoundedCornerShape(10.dp),
-        color = if (habit.isCompleted) (if (isDark) Color(0xFF1E293B) else TealTintBg)
-                else (if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9))
+        shape = RoundedCornerShape(12.dp),
+        color = if (habit.isCompleted) (if (isDark) Color(0xFF1E293B) else TealTintBg.copy(alpha = 0.5f))
+                else (if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9)),
+        border = BorderStroke(1.dp, if (habit.isCompleted) PrimaryTeal.copy(alpha = 0.35f) else (if (isDark) Color(0xFF334155) else NeutralBorderLight))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Completion Checkmark Toggle
-            IconButton(
-                onClick = {
-                    if (habit.isCompleted) onIncrement() else onMarkDone()
-                },
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = if (habit.isCompleted) Icons.Default.CheckCircle else Icons.Outlined.Circle,
-                    contentDescription = "Done",
-                    tint = if (habit.isCompleted) PrimaryTeal else (if (isDark) Color(0xFF94A3B8) else Color(0xFF9E9E9E)),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = habit.title,
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        fontSize = 13.5.sp,
                         color = if (isDark) Color.White else Color(0xFF1F1F1F)
                     ),
                     maxLines = 1,
@@ -1667,12 +1863,37 @@ private fun GoogleCalendarEventCard(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Status Label Pill at Far Right
+            Surface(
+                shape = CircleShape,
+                color = if (habit.isCompleted) PrimaryTeal else (if (isDark) Color(0xFF334155) else SoftNavyPillBg),
+                modifier = Modifier.clickable {
+                    if (habit.isCompleted) onIncrement() else onMarkDone()
+                }
+            ) {
+                Text(
+                    text = if (habit.isCompleted) {
+                        if (isArabic) "مكتمل ✓" else "Done ✓"
+                    } else {
+                        if (isArabic) "قيد الإنجاز" else "In Progress"
+                    },
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.5.sp,
+                        color = if (habit.isCompleted) Color.White else (if (isDark) Color(0xFFCBD5E1) else SoftNavyText)
+                    )
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun GoogleCalendarEventChip(
+private fun CalendarEventChip(
     habit: DailyHabitEntity,
     isDark: Boolean,
     isArabic: Boolean,
@@ -1755,139 +1976,130 @@ private fun CalendarHorizonStrip(
         listState.scrollToItem(2)
     }
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp)),
-        color = if (isDark) Color(0xFF1E293B) else Color.White,
-        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else NeutralBorderLight),
-        shape = RoundedCornerShape(20.dp)
-    ) {
-        Column(modifier = Modifier.padding(vertical = 12.dp)) {
-            // Header: Month & Year
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val monthFormatter = remember(isArabic) {
-                    DateTimeFormatter.ofPattern("MMMM yyyy", if (isArabic) Locale("ar") else Locale.ENGLISH)
-                }
-                Text(
-                    text = selectedDate.format(monthFormatter),
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFFF1F5F9) else SoftNavyText,
-                        fontSize = 13.sp
-                    )
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        // Header: Month & Year
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val monthFormatter = remember(isArabic) {
+                DateTimeFormatter.ofPattern("MMMM yyyy", if (isArabic) Locale("ar") else Locale.ENGLISH)
+            }
+            Text(
+                text = selectedDate.format(monthFormatter),
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) Color(0xFFF1F5F9) else SoftNavyText,
+                    fontSize = 13.sp
                 )
+            )
 
-                if (selectedDate != today) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
-                        modifier = Modifier.clickable { onSelectDate(today) }
-                    ) {
-                        Text(
-                            text = if (isArabic) "اليوم ↩" else "Today ↩",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = PrimaryTeal,
-                                fontSize = 11.sp
-                            )
+            if (selectedDate != today) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isDark) Color(0xFF334155) else SoftNavyPillBg,
+                    modifier = Modifier.clickable { onSelectDate(today) }
+                ) {
+                    Text(
+                        text = if (isArabic) "اليوم ↩" else "Today ↩",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryTeal,
+                            fontSize = 11.sp
                         )
-                    }
+                    )
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-            // Day Horizon Scroller
-            LazyRow(
-                state = listState,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp)
-            ) {
-                items(dates) { date ->
-                    val isSelected = date == selectedDate
-                    val isDateToday = date == today
+        // Day Horizon Scroller (Edge-to-Edge)
+        LazyRow(
+            state = listState,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp)
+        ) {
+            items(dates) { date ->
+                val isSelected = date == selectedDate
+                val isDateToday = date == today
 
-                    val dayOfWeek = date.dayOfWeek
-                    val bitIndex = when (dayOfWeek) {
-                        DayOfWeek.MONDAY -> 0
-                        DayOfWeek.TUESDAY -> 1
-                        DayOfWeek.WEDNESDAY -> 2
-                        DayOfWeek.THURSDAY -> 3
-                        DayOfWeek.FRIDAY -> 4
-                        DayOfWeek.SATURDAY -> 5
-                        DayOfWeek.SUNDAY -> 6
-                    }
-                    val dateIso = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                    val hasPinnedForDay = habits.any { habit ->
-                        habit.pinnedToPlanner && (
-                                (!habit.targetDateIso.isNullOrBlank() && habit.targetDateIso == dateIso) ||
-                                        (habit.targetDateIso.isNullOrBlank() && (habit.pinnedDaysMask and (1 shl bitIndex)) != 0)
-                                )
-                    }
-
-                    val dayInitial = if (isArabic) {
-                        when (dayOfWeek) {
-                            DayOfWeek.SATURDAY -> "سبت"
-                            DayOfWeek.SUNDAY -> "أحد"
-                            DayOfWeek.MONDAY -> "إثن"
-                            DayOfWeek.TUESDAY -> "ثلا"
-                            DayOfWeek.WEDNESDAY -> "أرب"
-                            DayOfWeek.THURSDAY -> "خمي"
-                            DayOfWeek.FRIDAY -> "جمع"
-                        }
-                    } else {
-                        dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH).uppercase()
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .width(52.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                when {
-                                    isSelected -> PrimaryTeal
-                                    isDateToday -> if (isDark) Color(0xFF334155) else TealTintBg
-                                    else -> if (isDark) Color(0xFF0F172A) else SoftNavyPillBg.copy(alpha = 0.6f)
-                                }
+                val dayOfWeek = date.dayOfWeek
+                val bitIndex = when (dayOfWeek) {
+                    DayOfWeek.MONDAY -> 0
+                    DayOfWeek.TUESDAY -> 1
+                    DayOfWeek.WEDNESDAY -> 2
+                    DayOfWeek.THURSDAY -> 3
+                    DayOfWeek.FRIDAY -> 4
+                    DayOfWeek.SATURDAY -> 5
+                    DayOfWeek.SUNDAY -> 6
+                }
+                val dateIso = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                val hasPinnedForDay = habits.any { habit ->
+                    habit.pinnedToPlanner && (
+                            (!habit.targetDateIso.isNullOrBlank() && habit.targetDateIso == dateIso) ||
+                                    (habit.targetDateIso.isNullOrBlank() && (habit.pinnedDaysMask and (1 shl bitIndex)) != 0)
                             )
-                            .border(
-                                width = if (isDateToday && !isSelected) 1.5.dp else 0.dp,
-                                color = if (isDateToday && !isSelected) PrimaryTeal else Color.Transparent,
-                                shape = RoundedCornerShape(14.dp)
-                            )
-                            .clickable { onSelectDate(date) }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
+                }
+
+                val dayInitial = if (isArabic) {
+                    when (dayOfWeek) {
+                        DayOfWeek.SATURDAY -> "سبت"
+                        DayOfWeek.SUNDAY -> "أحد"
+                        DayOfWeek.MONDAY -> "إثن"
+                        DayOfWeek.TUESDAY -> "ثلا"
+                        DayOfWeek.WEDNESDAY -> "أرب"
+                        DayOfWeek.THURSDAY -> "خمي"
+                        DayOfWeek.FRIDAY -> "جمع"
+                    }
+                } else {
+                    dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH).uppercase()
+                }
+
+                Box(
+                    modifier = Modifier
+                        .width(52.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            when {
+                                isSelected -> PrimaryTeal
+                                isDateToday -> if (isDark) Color(0xFF334155) else TealTintBg
+                                else -> if (isDark) Color(0xFF0F172A) else SoftNavyPillBg
+                            }
+                        )
+                        .border(
+                            width = if (isDateToday && !isSelected) 1.5.dp else (if (!isSelected && !isDark) 1.dp else 0.dp),
+                            color = if (isDateToday && !isSelected) PrimaryTeal else (if (!isSelected && !isDark) NeutralBorderLight else Color.Transparent),
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .clickable { onSelectDate(date) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Text(
-                                text = dayInitial,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 11.sp,
-                                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else (if (isDateToday) PrimaryTeal else (if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A)))
-                                )
+                        Text(
+                            text = dayInitial,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                                color = if (isSelected) Color.White.copy(alpha = 0.85f) else (if (isDateToday) PrimaryTeal else (if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A)))
                             )
-                            Text(
-                                text = date.dayOfMonth.toString(),
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = if (isSelected) Color.White else (if (isDateToday) PrimaryTeal else (if (isDark) Color(0xFFF1F5F9) else SoftNavyText))
-                                )
+                        )
+                        Text(
+                            text = date.dayOfMonth.toString(),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = if (isSelected) Color.White else (if (isDateToday) PrimaryTeal else (if (isDark) Color(0xFFF1F5F9) else SoftNavyText))
                             )
-                        }
+                        )
                     }
                 }
             }
@@ -2024,11 +2236,11 @@ private fun HabitItemCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .clickable { onIncrement() },
-        color = if (isDark) Color(0xFF1E293B) else Color.White,
+        color = if (habit.isCompleted) (if (isDark) Color(0xFF1E293B) else TealTintBg.copy(alpha = 0.6f))
+                else (if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)),
         border = BorderStroke(
             1.dp,
-            if (habit.pinnedToPlanner && isPinnedView) GoldBadgeText.copy(alpha = 0.5f)
-            else if (isDark) Color(0xFF334155) else NeutralBorderLight
+            if (isDark) Color(0xFF334155) else NeutralBorderLight
         ),
         shape = RoundedCornerShape(20.dp)
     ) {
@@ -2143,7 +2355,7 @@ private fun HabitItemCard(
                         text = "${habit.currentCount}/${habit.targetCount}",
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
-                            color = PrimaryTeal,
+                            color = if (isDark) Color(0xFF94A3B8) else SoftNavyText,
                             fontSize = 13.sp
                         )
                     )
@@ -2167,7 +2379,7 @@ private fun HabitItemCard(
                         Icon(
                             imageVector = if (habit.isAlarmEnabled) Icons.Default.Alarm else Icons.Outlined.Alarm,
                             contentDescription = "Adjust Alarm & Planner",
-                            tint = if (habit.isAlarmEnabled) PrimaryTeal else (if (isDark) Color(0xFF64748B) else Color(0xFF9E9E9E)),
+                            tint = if (habit.isAlarmEnabled) (if (isDark) Color(0xFFCBD5E1) else SoftNavyText) else (if (isDark) Color(0xFF64748B) else Color(0xFF9E9E9E)),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -2298,6 +2510,7 @@ fun SwipeableHabitRow(
 // Dialog: Add Habit with Planner & Alarm Integration
 // -----------------------------------------------------------------------------------------
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddHabitPlannerDialog(
     isDark: Boolean,
@@ -2333,6 +2546,8 @@ private fun AddHabitPlannerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.92f),
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -2475,7 +2690,7 @@ private fun AddHabitPlannerDialog(
                                         color = if (isDark) Color.White else SoftNavyText
                                     )
                                     Text(
-                                        text = if (isArabic) "يظهر في شبكة الساعات للتقويم" else "Positions on Google Calendar grid",
+                                        text = if (isArabic) "يظهر في شبكة الساعات للتقويم" else "Positions on Calendar grid",
                                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp, color = if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A))
                                     )
                                 }
@@ -2590,6 +2805,7 @@ private fun AddHabitPlannerDialog(
 // Dialog: Adjust Routine Planner Recurrence & Alarm
 // -----------------------------------------------------------------------------------------
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HabitScheduleAlarmDialog(
     habit: DailyHabitEntity,
@@ -2613,6 +2829,7 @@ private fun HabitScheduleAlarmDialog(
     var daysMask by remember { mutableIntStateOf(habit.pinnedDaysMask) }
     var targetDateIso by remember { mutableStateOf(habit.targetDateIso) }
     var notes by remember { mutableStateOf(habit.notes ?: "") }
+    var showTimePickerDialog by remember { mutableStateOf(false) }
 
     val daysOfWeekLabels = if (isArabic) {
         listOf("إثن", "ثلا", "أرب", "خمي", "جمع", "سبت", "أحد")
@@ -2622,6 +2839,8 @@ private fun HabitScheduleAlarmDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.92f),
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -2640,6 +2859,7 @@ private fun HabitScheduleAlarmDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 4.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -2786,10 +3006,36 @@ private fun HabitScheduleAlarmDialog(
                             val displayHour = if (selectedHour % 12 == 0) 12 else selectedHour % 12
                             val formatted = String.format(Locale.ENGLISH, "%02d:%02d %s", displayHour, selectedMinute, amPm)
 
-                            Text(
-                                text = if (isArabic) "وقت التنبيه: $formatted" else "Alarm Time: $formatted",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = PrimaryTeal)
-                            )
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showTimePickerDialog = true },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isDark) Color(0xFF1E293B) else TealTintBg,
+                                border = BorderStroke(1.dp, PrimaryTeal.copy(alpha = 0.4f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Alarm, contentDescription = null, tint = PrimaryTeal, modifier = Modifier.size(18.dp))
+                                        Text(
+                                            text = if (isArabic) "وقت التنبيه المحدد" else "Selected Alarm Time",
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 12.5.sp),
+                                            color = if (isDark) Color.White else SoftNavyText
+                                        )
+                                    }
+                                    Text(
+                                        text = "$formatted 🕒",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = PrimaryTeal)
+                                    )
+                                }
+                            }
 
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 item {
@@ -2809,31 +3055,57 @@ private fun HabitScheduleAlarmDialog(
                                 }
                             }
 
-                            Column {
-                                Text(
-                                    text = "Hour: $displayHour $amPm (${selectedHour}:00)",
-                                    style = MaterialTheme.typography.labelSmall.copy(color = if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A))
+                            if (showTimePickerDialog) {
+                                val timePickerState = rememberTimePickerState(
+                                    initialHour = selectedHour,
+                                    initialMinute = selectedMinute,
+                                    is24Hour = false
                                 )
-                                Slider(
-                                    value = selectedHour.toFloat(),
-                                    onValueChange = { selectedHour = it.toInt() },
-                                    valueRange = 0f..23f,
-                                    steps = 22,
-                                    colors = SliderDefaults.colors(thumbColor = PrimaryTeal, activeTrackColor = PrimaryTeal)
-                                )
-                            }
-
-                            Column {
-                                Text(
-                                    text = "Minute: ${String.format(Locale.ENGLISH, "%02d", selectedMinute)}",
-                                    style = MaterialTheme.typography.labelSmall.copy(color = if (isDark) Color(0xFF94A3B8) else Color(0xFF5F5E5A))
-                                )
-                                Slider(
-                                    value = selectedMinute.toFloat(),
-                                    onValueChange = { selectedMinute = it.toInt() },
-                                    valueRange = 0f..55f,
-                                    steps = 10,
-                                    colors = SliderDefaults.colors(thumbColor = PrimaryTeal, activeTrackColor = PrimaryTeal)
+                                AlertDialog(
+                                    onDismissRequest = { showTimePickerDialog = false },
+                                    title = {
+                                        Text(
+                                            text = if (isArabic) "اختر وقت المنبه" else "Select Alarm Time",
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = if (isDark) Color.White else Color(0xFF1F1F1F)
+                                        )
+                                    },
+                                    containerColor = if (isDark) Color(0xFF1E293B) else Color.White,
+                                    text = {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            TimePicker(
+                                                state = timePickerState,
+                                                colors = TimePickerDefaults.colors(
+                                                    clockDialColor = if (isDark) Color(0xFF1E293B) else Color.White,
+                                                    selectorColor = PrimaryTeal,
+                                                    containerColor = if (isDark) Color(0xFF0F172A) else TealTintBg.copy(alpha = 0.4f),
+                                                    periodSelectorSelectedContainerColor = PrimaryTeal,
+                                                    periodSelectorSelectedContentColor = Color.White
+                                                )
+                                            )
+                                        }
+                                    },
+                                    confirmButton = {
+                                        Button(
+                                            onClick = {
+                                                selectedHour = timePickerState.hour
+                                                selectedMinute = timePickerState.minute
+                                                showTimePickerDialog = false
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Text(if (isArabic) "موافق" else "OK", color = Color.White, fontWeight = FontWeight.Bold)
+                                        }
+                                    },
+                                    dismissButton = {
+                                        TextButton(onClick = { showTimePickerDialog = false }) {
+                                            Text(if (isArabic) "إلغاء" else "Cancel", color = if (isDark) Color(0xFF94A3B8) else SoftNavyText)
+                                        }
+                                    }
                                 )
                             }
                         }
