@@ -110,6 +110,7 @@ import com.example.ui.components.SpotlightOverlay
 import com.example.ui.components.SpotlightStep
 import com.example.ui.components.rememberSpotlightState
 import com.example.ui.components.spotlightTarget
+import com.example.ui.components.universalCardShadow
 import com.example.ui.theme.HomePageColors
 import com.example.ui.theme.rememberHomePageColors
 import kotlinx.coroutines.launch
@@ -281,10 +282,12 @@ fun QuranSurahSelectionScreen(
                     // Hifz Studio Card
                     Surface(
                         onClick = { viewModel.openMemorizationStudio() },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .universalCardShadow(shape = RoundedCornerShape(16.dp), elevation = 4.dp, isDark = isDark),
+                        shape = RoundedCornerShape(16.dp),
                         color = homeColors.outerCardBackground,
-                        shadowElevation = if (isDark) 0.dp else 0.4.dp
+                        border = if (isDark) BorderStroke(1.dp, Color(0xFF28303A)) else BorderStroke(1.dp, Color(0xFFECEFF1))
                     ) {
                         Column(
                             modifier = Modifier
@@ -362,10 +365,12 @@ fun QuranSurahSelectionScreen(
                     // Khatma Planner Card
                     Surface(
                         onClick = { viewModel.navigateTo(NoorDestination.QURAN_KHATMA) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .universalCardShadow(shape = RoundedCornerShape(16.dp), elevation = 4.dp, isDark = isDark),
+                        shape = RoundedCornerShape(16.dp),
                         color = homeColors.outerCardBackground,
-                        shadowElevation = if (isDark) 0.dp else 0.4.dp
+                        border = if (isDark) BorderStroke(1.dp, Color(0xFF28303A)) else BorderStroke(1.dp, Color(0xFFECEFF1))
                     ) {
                         val linkText = if (khatmaState != null) "${khatmaState!!.progressPercentage.toInt()}% done" else "Start a goal"
 
@@ -447,13 +452,13 @@ fun QuranSurahSelectionScreen(
             // Fixed Search Bar (Below Hifz Studio & Khatma Cards)
             item(key = "quran_fixed_search_bar") {
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = homeColors.outerCardBackground,
-                    border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.5f)),
-                    shadowElevation = if (isDark) 0.dp else 0.4.dp,
+                    border = if (isDark) BorderStroke(1.dp, Color(0xFF28303A)) else BorderStroke(1.dp, Color(0xFFECEFF1)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 2.dp)
+                        .universalCardShadow(shape = RoundedCornerShape(16.dp), elevation = 3.5.dp, isDark = isDark)
                         .spotlightTarget(spotlightState, "quran_step_search_bar")
                 ) {
                     OutlinedTextField(
@@ -752,10 +757,11 @@ fun SurahListItemCard(
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .universalCardShadow(shape = RoundedCornerShape(14.dp), elevation = 3.5.dp, isDark = isDark)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         color = homeColors.outerCardBackground,
-        shadowElevation = if (isDark) 0.dp else 0.4.dp
+        border = if (isDark) BorderStroke(1.dp, Color(0xFF28303A)) else BorderStroke(1.dp, Color(0xFFECEFF1))
     ) {
         Row(
             modifier = Modifier

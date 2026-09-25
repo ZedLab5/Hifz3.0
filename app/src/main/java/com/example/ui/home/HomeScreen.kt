@@ -31,7 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
@@ -751,7 +751,6 @@ private fun HeroNextPrayerCard(
                 isDark = isDark
             )
             .clip(RoundedCornerShape(24.dp))
-            .border(1.dp, borderDivider.copy(alpha = 0.6f), RoundedCornerShape(24.dp))
             .background(Color.Black)
     ) {
         // Hero background image (mosque photo) ALWAYS present in background
@@ -1186,11 +1185,11 @@ private fun DailyActivitySection(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(18.dp)
+        contentPadding = PaddingValues(16.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // 1. Top Header Row: Title & Subtext + Progress Circle on the right
             Row(
@@ -1204,14 +1203,14 @@ private fun DailyActivitySection(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = homeColors.titleText,
-                            fontSize = 16.5.sp
+                            fontSize = 16.sp
                         )
                     )
-                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingComfortable))
+                    Spacer(modifier = Modifier.height(com.example.ui.theme.NoorSpacing.TitleSubtextSpacingTight))
                     Text(
                         text = if (isLangArabic) "تمت تأدية $completedCount من 4 طاعات أساسية اليوم" else "$completedCount of 4 daily devotions completed",
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 13.sp,
+                            fontSize = 12.5.sp,
                             color = homeColors.subtext
                         )
                     )
@@ -1219,11 +1218,11 @@ private fun DailyActivitySection(
 
                 // Modern Circular Progress Indicator
                 Box(
-                    modifier = Modifier.size(42.dp),
+                    modifier = Modifier.size(38.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Canvas(modifier = Modifier.size(42.dp)) {
-                        val strokeWidth = 3.5.dp.toPx()
+                    Canvas(modifier = Modifier.size(38.dp)) {
+                        val strokeWidth = 3.dp.toPx()
                         drawCircle(
                             color = homeColors.progressTrack,
                             style = Stroke(width = strokeWidth)
@@ -1244,92 +1243,61 @@ private fun DailyActivitySection(
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = homeColors.titleText,
-                            fontSize = 13.sp
+                            fontSize = 12.sp
                         )
                     )
                 }
             }
 
-            // 2. 2x2 Modular Grid of Core Activities
+            // 2. 2x2 Compact Modular Grid of Core Activities
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Row 1: Salat + Quran
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // 1. SALAT CARD
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = homeColors.innerContainer,
-                        border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.8f)),
+                        border = null,
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable { viewModel.navigateTo(NoorDestination.SALAT) }
                     ) {
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(homeColors.iconBadgeBg),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(homeColors.iconBadgeBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    IslamicIconSalat(
-                                        modifier = Modifier.size(17.dp),
-                                        tint = homeColors.iconColor
-                                    )
-                                }
-
-                                // Action Link: "Check" / "تفقد" (Standard link badge)
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(homeColors.linkBadgeBg)
-                                        .clickable { viewModel.navigateTo(NoorDestination.SALAT) }
-                                        .padding(vertical = 3.dp, horizontal = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                    ) {
-                                        Text(
-                                            text = if (isLangArabic) "تفقد" else "Check",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = homeColors.linkText
-                                            )
-                                        )
-                                        Icon(
-                                            imageVector = if (isLangArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = null,
-                                            tint = homeColors.linkText,
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    }
-                                }
+                                IslamicIconSalat(
+                                    modifier = Modifier.size(17.dp),
+                                    tint = homeColors.iconColor
+                                )
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text(
-                                    text = if (isLangArabic) "الصلوات الخمس" else "Salat",
+                                    text = if (isLangArabic) "الصلوات" else "Salat",
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 13.5.sp,
+                                        fontSize = 12.5.sp,
                                         color = homeColors.titleText
                                     ),
                                     maxLines = 1,
@@ -1338,12 +1306,26 @@ private fun DailyActivitySection(
                                 Text(
                                     text = if (isLangArabic) "${completedPrayers.size}/٥" else "${completedPrayers.size}/5",
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 11.5.sp,
                                         color = homeColors.subtext
                                     ),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(homeColors.linkBadgeBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isLangArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = homeColors.linkText,
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
@@ -1351,88 +1333,71 @@ private fun DailyActivitySection(
 
                     // 2. QURAN CARD
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = homeColors.innerContainer,
-                        border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.8f)),
+                        border = null,
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable { viewModel.navigateTo(NoorDestination.QURAN_SURAH_LIST) }
                     ) {
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(homeColors.iconBadgeBg),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(homeColors.iconBadgeBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    IslamicIconMushaf(
-                                        modifier = Modifier.size(17.dp),
-                                        tint = homeColors.iconColor
-                                    )
-                                }
-
-                                // Action Link: "Read" / "اقرأ" (Standard link badge)
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(homeColors.linkBadgeBg)
-                                        .clickable { viewModel.navigateTo(NoorDestination.QURAN_SURAH_LIST) }
-                                        .padding(vertical = 3.dp, horizontal = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                    ) {
-                                        Text(
-                                            text = if (isLangArabic) "اقرأ" else "Read",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = homeColors.linkText
-                                            )
-                                        )
-                                        Icon(
-                                            imageVector = if (isLangArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = null,
-                                            tint = homeColors.linkText,
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    }
-                                }
+                                IslamicIconMushaf(
+                                    modifier = Modifier.size(17.dp),
+                                    tint = homeColors.iconColor
+                                )
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text(
                                     text = if (isLangArabic) "القرآن" else "Quran",
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 13.5.sp,
+                                        fontSize = 12.5.sp,
                                         color = homeColors.titleText
                                     ),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = if (isLangArabic) "${quranAyahsReadToday}/١٠ آيات" else "${quranAyahsReadToday}/10 Ayahs",
+                                    text = if (isLangArabic) "${quranAyahsReadToday}/١٠" else "${quranAyahsReadToday}/10",
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 11.5.sp,
                                         color = homeColors.subtext
                                     ),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(homeColors.linkBadgeBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isLangArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = homeColors.linkText,
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
@@ -1442,78 +1407,47 @@ private fun DailyActivitySection(
                 // Row 2: Dhikr + Adhkar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // 3. TASBIH & DHIKR CARD
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = homeColors.innerContainer,
-                        border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.8f)),
+                        border = null,
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable { viewModel.navigateTo(NoorDestination.AZKAR_READER) }
                     ) {
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(homeColors.iconBadgeBg),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(homeColors.iconBadgeBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    IslamicIconTasbeeh(
-                                        modifier = Modifier.size(17.dp),
-                                        tint = homeColors.iconColor
-                                    )
-                                }
-
-                                // Action Link: "Count" / "سبّح" (Standard link badge)
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(homeColors.linkBadgeBg)
-                                        .clickable { viewModel.navigateTo(NoorDestination.AZKAR_READER) }
-                                        .padding(vertical = 3.dp, horizontal = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                    ) {
-                                        Text(
-                                            text = if (isLangArabic) "سبّح" else "Count",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = homeColors.linkText
-                                            )
-                                        )
-                                        Icon(
-                                            imageVector = if (isLangArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = null,
-                                            tint = homeColors.linkText,
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    }
-                                }
+                                IslamicIconTasbeeh(
+                                    modifier = Modifier.size(17.dp),
+                                    tint = homeColors.iconColor
+                                )
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text(
                                     text = if (isLangArabic) "التسبيح" else "Tasbih",
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 13.5.sp,
+                                        fontSize = 12.5.sp,
                                         color = homeColors.titleText
                                     ),
                                     maxLines = 1,
@@ -1522,12 +1456,26 @@ private fun DailyActivitySection(
                                 Text(
                                     text = if (isLangArabic) "${tasbihCount}/${effectiveTasbihTarget}" else "${tasbihCount}/${effectiveTasbihTarget}",
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 11.5.sp,
                                         color = homeColors.subtext
                                     ),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(homeColors.linkBadgeBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isLangArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = homeColors.linkText,
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
@@ -1535,74 +1483,43 @@ private fun DailyActivitySection(
 
                     // 4. DAILY ADHKAR & DUAS CARD
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = homeColors.innerContainer,
-                        border = BorderStroke(1.dp, homeColors.dividerBorder.copy(alpha = 0.8f)),
+                        border = null,
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable { viewModel.navigateTo(NoorDestination.AZKAR_READER) }
                     ) {
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(homeColors.iconBadgeBg),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(homeColors.iconBadgeBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    IslamicIconDua(
-                                        modifier = Modifier.size(17.dp),
-                                        tint = homeColors.iconColor
-                                    )
-                                }
-
-                                // Action Link: "Recite" / "اتلُ" (Standard link badge)
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(homeColors.linkBadgeBg)
-                                        .clickable { viewModel.navigateTo(NoorDestination.AZKAR_READER) }
-                                        .padding(vertical = 3.dp, horizontal = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                    ) {
-                                        Text(
-                                            text = if (isLangArabic) "اتلُ" else "Recite",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = homeColors.linkText
-                                            )
-                                        )
-                                        Icon(
-                                            imageVector = if (isLangArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = null,
-                                            tint = homeColors.linkText,
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    }
-                                }
+                                IslamicIconDua(
+                                    modifier = Modifier.size(17.dp),
+                                    tint = homeColors.iconColor
+                                )
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(com.example.ui.theme.NoorSpacing.TitleSubtextSpacing)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text(
                                     text = if (isLangArabic) "الأذكار" else "Azkar",
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 13.5.sp,
+                                        fontSize = 12.5.sp,
                                         color = homeColors.titleText
                                     ),
                                     maxLines = 1,
@@ -1611,12 +1528,26 @@ private fun DailyActivitySection(
                                 Text(
                                     text = if (isLangArabic) "${azkarCountToday}/٥" else "${azkarCountToday}/5",
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Normal,
+                                        fontSize = 11.5.sp,
                                         color = homeColors.subtext
                                     ),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(homeColors.linkBadgeBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isLangArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = homeColors.linkText,
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
@@ -1624,14 +1555,46 @@ private fun DailyActivitySection(
                 }
             }
 
-            // Divider line above fire row
-            HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(),
-                thickness = 0.8.dp,
-                color = borderDivider
-            )
+            // Short soft streak header inlined with "All tasks" link
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isLangArabic) "سلسلة المداومة" else "Habit Streak",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.5.sp,
+                        color = homeColors.subtext
+                    )
+                )
 
-            // 7-Day Devotion Streak Fire Row (Moved below divider & reduced in size)
+                Row(
+                    modifier = Modifier.clickable { viewModel.navigateTo(NoorDestination.HABIT_TRACKER) },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        text = if (isLangArabic) "عرض كل المهام" else "All tasks",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = primaryTeal
+                        )
+                    )
+                    Icon(
+                        imageVector = if (isLangArabic) Icons.AutoMirrored.Filled.ArrowBack else Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = primaryTeal,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
+
+            // 7-Day Devotion Streak Fire Row
             val today = remember { LocalDate.now() }
             val currentDayOfWeek = today.dayOfWeek.value // 1 (Mon) .. 7 (Sun)
             val daysOfWeek = remember(today, isLangArabic, streakData) {
@@ -1677,17 +1640,17 @@ private fun DailyActivitySection(
                             Box(contentAlignment = Alignment.Center) {
                                 if (isHighlighted) {
                                     Icon(
-                                        imageVector = Icons.Filled.AutoAwesome,
-                                        contentDescription = "Spiritual Devotion",
-                                        tint = if (isToday) homeColors.badgeText else Color(0xFF107C41),
-                                        modifier = Modifier.size(13.dp)
+                                        imageVector = Icons.Filled.LocalFireDepartment,
+                                        contentDescription = "Habit Streak",
+                                        tint = if (isToday) homeColors.badgeText else Color(0xFFE56A00),
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 } else {
                                     Icon(
-                                        imageVector = Icons.Filled.AutoAwesome,
+                                        imageVector = Icons.Filled.LocalFireDepartment,
                                         contentDescription = null,
                                         tint = homeColors.subtext.copy(alpha = 0.35f),
-                                        modifier = Modifier.size(13.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
                             }
@@ -1702,44 +1665,6 @@ private fun DailyActivitySection(
                             )
                         )
                     }
-                }
-            }
-
-            // 3. Bottom Row: Left description text & Right "All tasks" navigation link
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.navigateTo(NoorDestination.HABIT_TRACKER) }
-                    .padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (isLangArabic) "سجل العادات والالتزام اليومي" else "Faith habits & daily progress",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 13.sp,
-                        color = textSecondary
-                    )
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = if (isLangArabic) "عرض كل المهام" else "All tasks",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = primaryTeal
-                        )
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = primaryTeal,
-                        modifier = Modifier.size(16.dp)
-                    )
                 }
             }
         }

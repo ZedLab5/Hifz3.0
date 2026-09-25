@@ -4147,11 +4147,10 @@ fun QuranRecitersShowcase(
     val textSecondary = homeColors.subtext
     val primaryTeal = homeColors.iconColor
 
-    val selectedReciter by viewModel.selectedReciter.collectAsStateWithLifecycle()
     val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
     val isArabic = appLanguage.equals("Arabic", ignoreCase = true) || appLanguage == "العربية" || appLanguage.startsWith("ar", ignoreCase = true)
 
-    val reciters = remember { QuranData.reciters.take(4) }
+    val topReciters = remember { QuranData.reciters.take(3) }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -4177,12 +4176,12 @@ fun QuranRecitersShowcase(
             }
         )
 
-        // Simple, Clean Audio Redirect Card
+        // Fresh Modern Audio Reciters Hub Card (Redirects to Reciters Screen)
         BentoCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(20.dp))
                 .clickable { viewModel.navigateTo(NoorDestination.QURAN_RECITERS) }
                 .testTag("quran_audio_player_home_card"),
             contentPadding = PaddingValues(18.dp)
@@ -4191,122 +4190,152 @@ fun QuranRecitersShowcase(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Top Audio Banner Row: Clean Avatar + Highly Visible Reciter Name
+                // Top Meta Header: Audio Badge & Qaris Count
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Clean Reciter Avatar
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(homeColors.iconBadgeBg)
-                            .border(1.5.dp, primaryTeal.copy(alpha = 0.35f), CircleShape),
-                        contentAlignment = Alignment.Center
+                    // Audio Library Tag
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = homeColors.iconBadgeBg
                     ) {
-                        if (selectedReciter.avatarUrl.isNotBlank()) {
-                            AsyncImage(
-                                model = selectedReciter.avatarUrl,
-                                contentDescription = selectedReciter.name,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                            )
-                        } else {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Headphones,
                                 contentDescription = null,
                                 tint = primaryTeal,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = if (isArabic) "المكتبة الصوتية الشاملة" else "Full Audio Library",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = primaryTeal
+                                )
                             )
                         }
                     }
 
-                    // Highly Visible Reciter Name & Audio Info
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    // Count Badge
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = homeColors.innerContainer,
+                        border = BorderStroke(1.dp, homeColors.dividerBorder)
                     ) {
                         Text(
-                            text = if (isArabic) selectedReciter.nameAr.ifBlank { selectedReciter.name } else selectedReciter.name,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 17.5.sp,
-                                color = textPrimary
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Text(
-                            text = if (isArabic) "المصحف المرتل الكامل • 114 سورة" else "Full Quran Audio • 114 Surahs",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Medium,
+                            text = if (isArabic) "+50 قارئ • 114 سورة" else "50+ Qaris • 114 Surahs",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = textSecondary
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            )
                         )
                     }
                 }
 
-                HorizontalDivider(color = homeColors.dividerBorder, thickness = 0.8.dp)
-
-                // Featured Reciters with Highly Visible Names
+                // Spotlight Reciters Showcase List
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = if (isArabic) "كبار القراء المتاحون:" else "Featured Reciters:",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.5.sp,
-                            color = primaryTeal
-                        )
-                    )
+                    topReciters.forEach { reciter ->
+                        val rName = if (isArabic && reciter.nameAr.isNotBlank()) reciter.nameAr else reciter.name
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        reciters.forEach { reciter ->
-                            val rName = if (isArabic && reciter.nameAr.isNotBlank()) {
-                                val parts = reciter.nameAr.split(" ")
-                                if (parts.size >= 2) "${parts[0]} ${parts.last()}" else reciter.nameAr
-                            } else {
-                                val parts = reciter.name.split(" ")
-                                if (parts.size >= 2) "${parts[0]} ${parts.last()}" else reciter.name
-                            }
-
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = homeColors.iconBadgeBg,
-                                border = BorderStroke(1.dp, primaryTeal.copy(alpha = 0.25f)),
-                                modifier = Modifier.weight(1f)
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = homeColors.innerContainer,
+                            border = BorderStroke(1.dp, homeColors.dividerBorder),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(
-                                    text = rName,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = textPrimary
-                                    ),
-                                    textAlign = TextAlign.Center,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                                )
+                                // Reciter Avatar
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(homeColors.iconBadgeBg)
+                                        .border(1.dp, primaryTeal.copy(alpha = 0.3f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (reciter.avatarUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = reciter.avatarUrl,
+                                            contentDescription = rName,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape)
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = null,
+                                            tint = primaryTeal,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+
+                                // Reciter Name & Style
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = rName,
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = textPrimary
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = if (isArabic) "رواية حفص عن عاصم • مصحف مرتل" else "Hafs from 'Aasim • Murattal",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontSize = 11.5.sp,
+                                            color = textSecondary
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = homeColors.iconBadgeBg,
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Play",
+                                            tint = primaryTeal,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
-                // Single Clean Redirect CTA Button
+                // Primary Redirect Button
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = homeColors.progressFill,
@@ -4317,7 +4346,7 @@ fun QuranRecitersShowcase(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 12.dp, horizontal = 16.dp),
+                            .padding(vertical = 13.dp, horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -4329,19 +4358,12 @@ fun QuranRecitersShowcase(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isArabic) "تصفح القراء واستمع للتلاوات" else "Browse Qaris & Listen",
+                            text = if (isArabic) "عرض كافة القراء والتلاوات" else "Browse All Reciters & Audio",
                             style = MaterialTheme.typography.labelLarge.copy(
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(15.dp)
                         )
                     }
                 }
